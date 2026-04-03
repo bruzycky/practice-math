@@ -1,6 +1,4 @@
-# This .gitignore file should be placed at the root of your Unity project directory
-#
-# Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
+# Unity (upstream: https://github.com/github/gitignore/blob/main/Unity.gitignore)
 #
 .utmp/
 /[Ll]ibrary/
@@ -17,7 +15,7 @@
 *.blend1.meta
 
 # MemoryCaptures can get excessive in size.
-# They also could contain extremely sensitive data
+# They also can contain extremely sensitive data
 /[Mm]emoryCaptures/
 
 # Recordings can get excessive in size
@@ -97,3 +95,14 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# ------------------------------------------------------------------------------
+# OS / local editor noise (safe for Unity repos)
+# ------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# JetBrains Rider — local cache (commit .idea/ only if your team shares Rider settings)
+.idea/
