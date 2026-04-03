@@ -56,11 +56,11 @@ namespace PracticeMath.Core
     /// </summary>
     public sealed class MathProblemGenerator
     {
-        private readonly Random _rng;
+        private readonly System.Random _rng;
 
         public MathProblemGenerator(int? seed = null)
         {
-            _rng = seed.HasValue ? new Random(seed.Value) : new Random();
+            _rng = seed.HasValue ? new System.Random(seed.Value) : new System.Random();
         }
 
         public MathProblem Next(GeneratorSettings settings)
