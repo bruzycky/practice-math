@@ -23,11 +23,24 @@ namespace PracticeMath.Core
         public int MultiplicationMin;
         public int MultiplicationMax;
 
+        /// <summary>
+        /// If non-null and non-empty, one factor is chosen from this list and the other from
+        /// <see cref="MultiplicationMin"/>..<see cref="MultiplicationMax"/> (order randomized).
+        /// Used for e.g. grade 3 ×2 / ×5 / ×10 focus.
+        /// </summary>
+        public int[] MultiplicationAnchorFactors;
+
         /// <summary>Divisor range (e.g. 2–10). Problems are whole-number division.</summary>
         public int DivisionDivisorMin;
         public int DivisionDivisorMax;
         public int DivisionQuotientMin;
         public int DivisionQuotientMax;
+
+        /// <summary>
+        /// If non-null and non-empty, the divisor is chosen from this list instead of
+        /// <see cref="DivisionDivisorMin"/>..<see cref="DivisionDivisorMax"/>.
+        /// </summary>
+        public int[] DivisionDivisorChoices;
 
         public static GeneratorSettings DefaultEarlyElementary()
         {
@@ -46,7 +59,9 @@ namespace PracticeMath.Core
                 DivisionDivisorMin = 2,
                 DivisionDivisorMax = 10,
                 DivisionQuotientMin = 1,
-                DivisionQuotientMax = 10
+                DivisionQuotientMax = 10,
+                MultiplicationAnchorFactors = null,
+                DivisionDivisorChoices = null
             };
         }
     }
@@ -128,15 +143,37 @@ namespace PracticeMath.Core
 
         private MathProblem MakeMultiplication(GeneratorSettings s)
         {
-            int a = NextInclusive(s.MultiplicationMin, s.MultiplicationMax);
-            int b = NextInclusive(s.MultiplicationMin, s.MultiplicationMax);
+            int a;
+            int b;
+            if (s.MultiplicationAnchorFactors != null && s.MultiplicationAnchorFactors.Length > 0)
+            {
+                a = s.MultiplicationAnchorFactors[_rng.Next(s.MultiplicationAnchorFactors.Length)];
+                b = NextInclusive(s.MultiplicationMin, s.MultiplicationMax);
+                if (_rng.Next(2) == 0)
+                    (a, b) = (b, a);
+            }
+            else
+            {
+                a = NextInclusive(s.MultiplicationMin, s.MultiplicationMax);
+                b = NextInclusive(s.MultiplicationMin, s.MultiplicationMax);
+            }
+
             int p = a * b;
             return new MathProblem($"{a} × {b} =", p, MathOperation.Multiplication, a, b);
         }
 
         private MathProblem MakeDivision(GeneratorSettings s)
         {
-            int divisor = NextInclusive(s.DivisionDivisorMin, s.DivisionDivisorMax);
+            int divisor;
+            if (s.DivisionDivisorChoices != null && s.DivisionDivisorChoices.Length > 0)
+            {
+                divisor = s.DivisionDivisorChoices[_rng.Next(s.DivisionDivisorChoices.Length)];
+            }
+            else
+            {
+                divisor = NextInclusive(s.DivisionDivisorMin, s.DivisionDivisorMax);
+            }
+
             if (divisor == 0)
                 divisor = 1;
 
