@@ -114,7 +114,7 @@ namespace PracticeMath.Core
             int a = NextInclusive(s.AdditionMin, s.AdditionMax);
             int b = NextInclusive(s.AdditionMin, s.AdditionMax);
             int sum = a + b;
-            return new MathProblem($"{a} + {b} = ?", sum, MathOperation.Addition, a, b);
+            return new MathProblem($"{a} + {b} =", sum, MathOperation.Addition, a, b);
         }
 
         private MathProblem MakeSubtraction(GeneratorSettings s)
@@ -123,7 +123,7 @@ namespace PracticeMath.Core
             int lo = NextInclusive(s.SubtractionMin, Math.Min(hi, s.SubtractionMax));
             int a = Math.Max(hi, lo);
             int b = Math.Min(hi, lo);
-            return new MathProblem($"{a} − {b} = ?", a - b, MathOperation.Subtraction, a, b);
+            return new MathProblem($"{a} − {b} =", a - b, MathOperation.Subtraction, a, b);
         }
 
         private MathProblem MakeMultiplication(GeneratorSettings s)
@@ -131,7 +131,7 @@ namespace PracticeMath.Core
             int a = NextInclusive(s.MultiplicationMin, s.MultiplicationMax);
             int b = NextInclusive(s.MultiplicationMin, s.MultiplicationMax);
             int p = a * b;
-            return new MathProblem($"{a} × {b} = ?", p, MathOperation.Multiplication, a, b);
+            return new MathProblem($"{a} × {b} =", p, MathOperation.Multiplication, a, b);
         }
 
         private MathProblem MakeDivision(GeneratorSettings s)
@@ -144,7 +144,7 @@ namespace PracticeMath.Core
             int dividend = divisor * quotient;
 
             return new MathProblem(
-                $"{dividend} ÷ {divisor} = ?",
+                $"{dividend} ÷ {divisor} =",
                 quotient,
                 MathOperation.Division,
                 dividend,

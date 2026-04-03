@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Text;
 using PracticeMath.Core;
 using TMPro;
@@ -18,15 +19,36 @@ namespace PracticeMath.UI
         [Tooltip("Maximum digits the learner can enter (avoids runaway strings).")]
         [SerializeField] private int maxDigits = 8;
 
+        [Tooltip("Shown at random when the answer is correct. Edit in the Inspector or leave defaults.")]
+        [SerializeField] private string[] positiveFeedbackMessages =
+        {
+            "Good!",
+            "Nice!",
+            "Way to go!",
+            "Awesome!",
+            "Great job!",
+            "You got it!",
+        };
+
+        [Header("Wrong answer")]
+        [Tooltip("After \"Try again\", wait this long then clear the typed answer (if the student has not edited it).")]
+        [SerializeField] private float wrongAnswerClearDelaySeconds = 1f;
+
         [Header("Events (optional)")]
         [SerializeField] private UnityEvent onAnswerCorrect;
         [SerializeField] private UnityEvent onAnswerIncorrect;
 
         private readonly StringBuilder _digits = new StringBuilder();
+        private Coroutine _wrongAnswerClearRoutine;
 
         private void OnEnable()
         {
             ClearInput();
+        }
+
+        private void OnDisable()
+        {
+            StopWrongAnswerClearRoutine();
         }
 
         public void Digit0() => AppendDigit('0');
@@ -43,9 +65,16 @@ namespace PracticeMath.UI
         /// <summary>Clear all entered digits (wire a Clear button).</summary>
         public void ClearInput()
         {
+            StopWrongAnswerClearRoutine();
+            ClearDigitsOnly();
+            ClearFeedback();
+        }
+
+        /// <summary>Clears the typed answer only; does not change feedback text.</summary>
+        private void ClearDigitsOnly()
+        {
             _digits.Clear();
             RefreshDisplay();
-            ClearFeedback();
         }
 
         /// <summary>Remove the last digit (wire a Backspace button).</summary>
@@ -53,6 +82,7 @@ namespace PracticeMath.UI
         {
             if (_digits.Length <= 0)
                 return;
+            StopWrongAnswerClearRoutine();
             _digits.Length--;
             RefreshDisplay();
             ClearFeedback();
@@ -79,22 +109,42 @@ namespace PracticeMath.UI
             MathProblem problem = practice.CurrentProblem;
             if (value == problem.CorrectAnswer)
             {
-                SetFeedback("Correct!");
+                StopWrongAnswerClearRoutine();
+                string praise = GetRandomPositiveFeedback();
+                SetFeedback(praise);
                 onAnswerCorrect?.Invoke();
-                ClearInput();
+                ClearDigitsOnly();
                 practice.ShowNewProblem();
             }
             else
             {
                 SetFeedback("Try again");
                 onAnswerIncorrect?.Invoke();
+                StopWrongAnswerClearRoutine();
+                _wrongAnswerClearRoutine = StartCoroutine(ClearWrongAnswerAfterDelay());
             }
+        }
+
+        private IEnumerator ClearWrongAnswerAfterDelay()
+        {
+            yield return new WaitForSeconds(wrongAnswerClearDelaySeconds);
+            _wrongAnswerClearRoutine = null;
+            ClearDigitsOnly();
+        }
+
+        private void StopWrongAnswerClearRoutine()
+        {
+            if (_wrongAnswerClearRoutine == null)
+                return;
+            StopCoroutine(_wrongAnswerClearRoutine);
+            _wrongAnswerClearRoutine = null;
         }
 
         private void AppendDigit(char c)
         {
             if (_digits.Length >= maxDigits)
                 return;
+            StopWrongAnswerClearRoutine();
             _digits.Append(c);
             RefreshDisplay();
             ClearFeedback();
@@ -117,6 +167,15 @@ namespace PracticeMath.UI
         {
             if (feedbackText != null)
                 feedbackText.text = string.Empty;
+        }
+
+        private string GetRandomPositiveFeedback()
+        {
+            if (positiveFeedbackMessages == null || positiveFeedbackMessages.Length == 0)
+                return "Good!";
+            int i = Random.Range(0, positiveFeedbackMessages.Length);
+            string msg = positiveFeedbackMessages[i];
+            return string.IsNullOrWhiteSpace(msg) ? "Good!" : msg;
         }
     }
 }
