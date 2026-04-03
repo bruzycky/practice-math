@@ -1,3 +1,5 @@
+using System;
+
 namespace PracticeMath.Core
 {
     /// <summary>
@@ -7,12 +9,34 @@ namespace PracticeMath.Core
     public static class GradeCurriculumSettings
     {
         /// <summary>Addition, subtraction, multiplication, and division bounds for the given grade.</summary>
-        public static GeneratorSettings ForGrade(GradeLevel grade)
+        public static GeneratorSettings ForGrade(GradeLevel grade) => BuildForGrade(grade);
+
+        /// <summary>
+        /// <paramref name="variantB"/> slightly raises caps for A/B experiments (same operations).
+        /// </summary>
+        public static GeneratorSettings ForGrade(GradeLevel grade, bool variantB)
+        {
+            GeneratorSettings s = BuildForGrade(grade);
+            if (!variantB)
+                return s;
+            return ApplyVariantB(s);
+        }
+
+        private static GeneratorSettings ApplyVariantB(GeneratorSettings s)
+        {
+            s.AdditionMax = Math.Min(s.AdditionMax + 2, 5000);
+            s.SubtractionMax = Math.Min(s.SubtractionMax + 5, 5000);
+            s.MultiplicationMax = Math.Min(s.MultiplicationMax + 2, 12);
+            s.DivisionDivisorMax = Math.Min(s.DivisionDivisorMax + 2, 12);
+            s.DivisionQuotientMax = Math.Min(s.DivisionQuotientMax + 2, 20);
+            return s;
+        }
+
+        private static GeneratorSettings BuildForGrade(GradeLevel grade)
         {
             switch (grade)
             {
                 case GradeLevel.Grade1:
-                    // Sums to 10-style: operands 0–5; subtraction related facts to 10; small × and ÷
                     return new GeneratorSettings
                     {
                         IncludeAddition = true,
@@ -34,7 +58,6 @@ namespace PracticeMath.Core
                     };
 
                 case GradeLevel.Grade2:
-                    // Facts to 20; building multiplication/division through 10×10 representations
                     return new GeneratorSettings
                     {
                         IncludeAddition = true,
@@ -56,7 +79,6 @@ namespace PracticeMath.Core
                     };
 
                 case GradeLevel.Grade3:
-                    // Recall ×2, ×5, ×10 and related division; mental +/- within 1000 — use 0–100 operands for prompts
                     return new GeneratorSettings
                     {
                         IncludeAddition = true,
@@ -78,7 +100,6 @@ namespace PracticeMath.Core
                     };
 
                 case GradeLevel.Grade4:
-                    // Larger whole numbers; full multiplication facts to 10×10 and related division
                     return new GeneratorSettings
                     {
                         IncludeAddition = true,
@@ -100,7 +121,7 @@ namespace PracticeMath.Core
                     };
 
                 default:
-                    throw new System.ArgumentOutOfRangeException(nameof(grade), grade, null);
+                    throw new ArgumentOutOfRangeException(nameof(grade), grade, null);
             }
         }
     }

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Text;
+using PracticeMath.Analytics;
 using PracticeMath.Core;
 using TMPro;
 using UnityEngine;
@@ -14,6 +15,8 @@ namespace PracticeMath.UI
     public sealed class AnswerKeypad : MonoBehaviour
     {
         [SerializeField] private PracticeProblemController practice;
+        [Tooltip("Same instance as on Practice Problem Controller, if used.")]
+        [SerializeField] private PracticeSessionAnalytics sessionAnalytics;
         [SerializeField] private TextMeshProUGUI answerDisplay;
         [SerializeField] private TextMeshProUGUI feedbackText;
         [Tooltip("Maximum digits the learner can enter (avoids runaway strings).")]
@@ -107,8 +110,10 @@ namespace PracticeMath.UI
             }
 
             MathProblem problem = practice.CurrentProblem;
+            bool variantB = practice.CurrentProblemUsesVariantB;
             if (value == problem.CorrectAnswer)
             {
+                sessionAnalytics?.NotifyAnswerAttempt(true, practice.CurrentGrade, problem.Operation, variantB);
                 StopWrongAnswerClearRoutine();
                 string praise = GetRandomPositiveFeedback();
                 SetFeedback(praise);
@@ -118,6 +123,8 @@ namespace PracticeMath.UI
             }
             else
             {
+                sessionAnalytics?.NotifyWrongValueSubmitted(value);
+                sessionAnalytics?.NotifyAnswerAttempt(false, practice.CurrentGrade, problem.Operation, variantB);
                 SetFeedback("Try again");
                 onAnswerIncorrect?.Invoke();
                 StopWrongAnswerClearRoutine();
