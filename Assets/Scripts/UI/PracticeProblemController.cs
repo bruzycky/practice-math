@@ -30,6 +30,12 @@ namespace PracticeMath.UI
         [Header("A/B experiment")]
         [SerializeField] private AbExperimentMode abExperimentMode = AbExperimentMode.Off;
 
+        /// <summary>
+        /// Same instance used for new-question / grade notifications.
+        /// <see cref="AnswerKeypad"/> uses this when its own analytics field is not assigned.
+        /// </summary>
+        public PracticeSessionAnalytics SessionAnalytics => sessionAnalytics;
+
         private MathProblemGenerator _generator;
         private MathProblem _current;
         private GradeLevel _gradeLevel;

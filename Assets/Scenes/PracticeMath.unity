@@ -4458,7 +4458,7 @@ GameObject:
   - component: {fileID: 1444093235}
   - component: {fileID: 1444093236}
   m_Layer: 0
-  m_Name: MathManager
+  m_Name: PracticeController
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

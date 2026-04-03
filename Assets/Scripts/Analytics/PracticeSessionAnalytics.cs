@@ -410,7 +410,7 @@ namespace PracticeMath.Analytics
                 sb.AppendLine($"Last wrong answer typed: {LastWrongAnswer}");
 
             sb.AppendLine();
-            sb.AppendLine("MEDIAN solve time (ms), saved samples");
+            sb.AppendLine("MEDIAN solve time (seconds), saved samples");
             AppendMedianBlock(sb, -1, -1, "All");
             for (int g = 0; g < 4; g++)
                 AppendMedianBlock(sb, g, -1, $"Grade {g + 1}");
@@ -483,8 +483,9 @@ namespace PracticeMath.Analytics
                 return;
             }
 
-            float med = MedianSorted(ms);
-            sb.AppendLine($"{label}: {med:F0} ms (n={ms.Count})");
+            float medMs = MedianSorted(ms);
+            float medSec = medMs / 1000f;
+            sb.AppendLine($"{label}: {medSec:F2}s (n={ms.Count})");
         }
 
         private static float MedianSorted(List<int> sortedMs)

@@ -15,7 +15,7 @@ namespace PracticeMath.UI
     public sealed class AnswerKeypad : MonoBehaviour
     {
         [SerializeField] private PracticeProblemController practice;
-        [Tooltip("Same instance as on Practice Problem Controller, if used.")]
+        [Tooltip("Optional; if empty, uses Practice Problem Controller’s analytics, then any instance in the scene.")]
         [SerializeField] private PracticeSessionAnalytics sessionAnalytics;
         [SerializeField] private TextMeshProUGUI answerDisplay;
         [SerializeField] private TextMeshProUGUI feedbackText;
@@ -43,6 +43,25 @@ namespace PracticeMath.UI
 
         private readonly StringBuilder _digits = new StringBuilder();
         private Coroutine _wrongAnswerClearRoutine;
+        private PracticeSessionAnalytics _analyticsResolved;
+
+        /// <summary>Uses explicit field, else <see cref="PracticeProblemController.SessionAnalytics"/>, else FindFirstObjectByType.</summary>
+        private PracticeSessionAnalytics Analytics
+        {
+            get
+            {
+                if (_analyticsResolved != null)
+                    return _analyticsResolved;
+                if (sessionAnalytics != null)
+                    return _analyticsResolved = sessionAnalytics;
+                if (practice != null && practice.SessionAnalytics != null)
+                    return _analyticsResolved = practice.SessionAnalytics;
+                var found = FindFirstObjectByType<PracticeSessionAnalytics>(FindObjectsInactive.Include);
+                if (found != null)
+                    _analyticsResolved = found;
+                return found;
+            }
+        }
 
         private void OnEnable()
         {
@@ -113,7 +132,7 @@ namespace PracticeMath.UI
             bool variantB = practice.CurrentProblemUsesVariantB;
             if (value == problem.CorrectAnswer)
             {
-                sessionAnalytics?.NotifyAnswerAttempt(true, practice.CurrentGrade, problem.Operation, variantB);
+                Analytics?.NotifyAnswerAttempt(true, practice.CurrentGrade, problem.Operation, variantB);
                 StopWrongAnswerClearRoutine();
                 string praise = GetRandomPositiveFeedback();
                 SetFeedback(praise);
@@ -123,8 +142,8 @@ namespace PracticeMath.UI
             }
             else
             {
-                sessionAnalytics?.NotifyWrongValueSubmitted(value);
-                sessionAnalytics?.NotifyAnswerAttempt(false, practice.CurrentGrade, problem.Operation, variantB);
+                Analytics?.NotifyWrongValueSubmitted(value);
+                Analytics?.NotifyAnswerAttempt(false, practice.CurrentGrade, problem.Operation, variantB);
                 SetFeedback("Try again");
                 onAnswerIncorrect?.Invoke();
                 StopWrongAnswerClearRoutine();
