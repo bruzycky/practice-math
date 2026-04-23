@@ -41,6 +41,8 @@ namespace PracticeMath.UI
         private GradeLevel _gradeLevel;
         private GeneratorSettings _settings;
         private bool _useVariantB;
+        private readonly HashSet<string> _askedProblemKeys = new HashSet<string>();
+        private const int MaxUniqueGenerationAttempts = 256;
 
         /// <summary>Currently selected grade (drives + − × ÷ ranges).</summary>
         public GradeLevel CurrentGrade => _gradeLevel;
@@ -105,10 +107,30 @@ namespace PracticeMath.UI
         {
             PickVariantForNextProblem();
             _settings = GradeCurriculumSettings.ForGrade(_gradeLevel, _useVariantB);
-            _current = _generator.Next(_settings);
+            _current = NextUnaskedProblem(_settings);
             if (promptText != null)
                 promptText.text = _current.Prompt;
             sessionAnalytics?.NotifyNewProblem();
+        }
+
+        private MathProblem NextUnaskedProblem(GeneratorSettings settings)
+        {
+            for (int attempt = 0; attempt < MaxUniqueGenerationAttempts; attempt++)
+            {
+                var candidate = _generator.Next(settings);
+                if (_askedProblemKeys.Add(ProblemKey(candidate)))
+                    return candidate;
+            }
+
+            // If the available pool is exhausted, return a problem anyway instead of blocking.
+            var fallback = _generator.Next(settings);
+            _askedProblemKeys.Add(ProblemKey(fallback));
+            return fallback;
+        }
+
+        private static string ProblemKey(MathProblem problem)
+        {
+            return problem.Operation + ":" + problem.LeftOperand + ":" + problem.RightOperand;
         }
 
         /// <summary>The problem currently shown (after the last <see cref="ShowNewProblem"/>).</summary>

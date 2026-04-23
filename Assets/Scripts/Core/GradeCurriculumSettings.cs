@@ -24,8 +24,8 @@ namespace PracticeMath.Core
 
         private static GeneratorSettings ApplyVariantB(GeneratorSettings s)
         {
-            s.AdditionMax = Math.Min(s.AdditionMax + 2, 5000);
-            s.SubtractionMax = Math.Min(s.SubtractionMax + 5, 5000);
+            s.AdditionMax = Math.Min(s.AdditionMax + 2, 10000);
+            s.SubtractionMax = Math.Min(s.SubtractionMax + 5, 10000);
             s.MultiplicationMax = Math.Min(s.MultiplicationMax + 2, 12);
             s.DivisionDivisorMax = Math.Min(s.DivisionDivisorMax + 2, 12);
             s.DivisionQuotientMax = Math.Min(s.DivisionQuotientMax + 2, 20);
@@ -41,8 +41,8 @@ namespace PracticeMath.Core
                     {
                         IncludeAddition = true,
                         IncludeSubtraction = true,
-                        IncludeMultiplication = true,
-                        IncludeDivision = true,
+                        IncludeMultiplication = false,
+                        IncludeDivision = false,
                         AdditionMin = 0,
                         AdditionMax = 5,
                         SubtractionMin = 0,
@@ -65,17 +65,17 @@ namespace PracticeMath.Core
                         IncludeMultiplication = true,
                         IncludeDivision = true,
                         AdditionMin = 0,
-                        AdditionMax = 10,
+                        AdditionMax = 20,
                         SubtractionMin = 0,
                         SubtractionMax = 20,
-                        MultiplicationMin = 0,
-                        MultiplicationMax = 10,
-                        MultiplicationAnchorFactors = null,
+                        MultiplicationMin = 1,
+                        MultiplicationMax = 5,
+                        MultiplicationAnchorFactors = new[] { 2, 5 },
                         DivisionDivisorMin = 2,
-                        DivisionDivisorMax = 10,
+                        DivisionDivisorMax = 6,
                         DivisionQuotientMin = 1,
-                        DivisionQuotientMax = 10,
-                        DivisionDivisorChoices = null
+                        DivisionQuotientMax = 5,
+                        DivisionDivisorChoices = new[] { 2, 3, 4, 5, 6 }
                     };
 
                 case GradeLevel.Grade3:
@@ -86,17 +86,17 @@ namespace PracticeMath.Core
                         IncludeMultiplication = true,
                         IncludeDivision = true,
                         AdditionMin = 0,
-                        AdditionMax = 100,
+                        AdditionMax = 1000,
                         SubtractionMin = 0,
-                        SubtractionMax = 100,
+                        SubtractionMax = 1000,
                         MultiplicationMin = 1,
                         MultiplicationMax = 10,
-                        MultiplicationAnchorFactors = new[] { 2, 5, 10 },
+                        MultiplicationAnchorFactors = null,
                         DivisionDivisorMin = 2,
                         DivisionDivisorMax = 10,
                         DivisionQuotientMin = 1,
                         DivisionQuotientMax = 10,
-                        DivisionDivisorChoices = new[] { 2, 5, 10 }
+                        DivisionDivisorChoices = null
                     };
 
                 case GradeLevel.Grade4:
@@ -107,16 +107,16 @@ namespace PracticeMath.Core
                         IncludeMultiplication = true,
                         IncludeDivision = true,
                         AdditionMin = 0,
-                        AdditionMax = 999,
+                        AdditionMax = 10000,
                         SubtractionMin = 0,
-                        SubtractionMax = 999,
-                        MultiplicationMin = 0,
+                        SubtractionMax = 10000,
+                        MultiplicationMin = 1,
                         MultiplicationMax = 10,
                         MultiplicationAnchorFactors = null,
                         DivisionDivisorMin = 2,
                         DivisionDivisorMax = 10,
                         DivisionQuotientMin = 1,
-                        DivisionQuotientMax = 10,
+                        DivisionQuotientMax = 12,
                         DivisionDivisorChoices = null
                     };
 
