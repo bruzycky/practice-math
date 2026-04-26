@@ -21,9 +21,13 @@ namespace PracticeMath.UI
     /// </summary>
     public sealed class PracticeProblemController : MonoBehaviour
     {
+        private const int QuizQuestionsPerSession = 10;
+
         [SerializeField] private TextMeshProUGUI promptText;
         [Tooltip("If set, options are filled with Grade 1–4 and changes update problem difficulty.")]
         [SerializeField] private TMP_Dropdown gradeDropdown;
+        [Tooltip("Optional text for quiz progress and final score.")]
+        [SerializeField] private TextMeshProUGUI quizStatusText;
         [SerializeField] private GradeLevel initialGrade = GradeLevel.Grade1;
         [Tooltip("Optional session stats; notified when each new question is shown.")]
         [SerializeField] private PracticeSessionAnalytics sessionAnalytics;
@@ -41,6 +45,9 @@ namespace PracticeMath.UI
         private GradeLevel _gradeLevel;
         private GeneratorSettings _settings;
         private bool _useVariantB;
+        private bool _isQuizActive;
+        private int _quizQuestionsAnswered;
+        private int _quizCorrectAnswers;
         private readonly HashSet<string> _askedProblemKeys = new HashSet<string>();
         private const int MaxUniqueGenerationAttempts = 256;
 
@@ -49,6 +56,10 @@ namespace PracticeMath.UI
 
         /// <summary>Whether the current on-screen problem was drawn from preset B (slightly harder caps).</summary>
         public bool CurrentProblemUsesVariantB => _useVariantB;
+        public bool IsQuizActive => _isQuizActive;
+        public bool IsQuizCompleted => !_isQuizActive && _quizQuestionsAnswered >= QuizQuestionsPerSession;
+        public int QuizQuestionCount => QuizQuestionsPerSession;
+        public int QuizCorrectAnswers => _quizCorrectAnswers;
 
         private void Awake()
         {
@@ -69,6 +80,7 @@ namespace PracticeMath.UI
             }
 
             sessionAnalytics?.NotifyActiveGrade(_gradeLevel);
+            UpdateQuizStatusText(string.Empty);
             ShowNewProblem();
         }
 
@@ -82,6 +94,53 @@ namespace PracticeMath.UI
         {
             _gradeLevel = (GradeLevel)(index + 1);
             sessionAnalytics?.NotifyActiveGrade(_gradeLevel);
+            if (_isQuizActive)
+                StartQuiz();
+            else
+                ShowNewProblem();
+        }
+
+        /// <summary>Starts a 10-question quiz for the currently selected grade.</summary>
+        public void StartQuiz()
+        {
+            _isQuizActive = true;
+            _quizQuestionsAnswered = 0;
+            _quizCorrectAnswers = 0;
+            _askedProblemKeys.Clear();
+            UpdateQuizStatusText($"Quiz started: Question 1 of {QuizQuestionsPerSession}");
+            ShowNewProblem();
+        }
+
+        /// <summary>Cancels the active quiz and returns to normal practice mode.</summary>
+        public void CancelQuiz()
+        {
+            _isQuizActive = false;
+            _quizQuestionsAnswered = 0;
+            _quizCorrectAnswers = 0;
+            UpdateQuizStatusText(string.Empty);
+            ShowNewProblem();
+        }
+
+        /// <summary>Advances quiz progress after one submitted answer.</summary>
+        public void RecordQuizAnswer(bool isCorrect)
+        {
+            if (!_isQuizActive)
+                return;
+
+            if (isCorrect)
+                _quizCorrectAnswers++;
+
+            _quizQuestionsAnswered++;
+
+            if (_quizQuestionsAnswered >= QuizQuestionsPerSession)
+            {
+                _isQuizActive = false;
+                UpdateQuizStatusText($"Quiz complete: {_quizCorrectAnswers} out of {QuizQuestionsPerSession} correct.");
+                return;
+            }
+
+            int nextQuestionNumber = _quizQuestionsAnswered + 1;
+            UpdateQuizStatusText($"Quiz in progress: Question {nextQuestionNumber} of {QuizQuestionsPerSession}");
             ShowNewProblem();
         }
 
@@ -131,6 +190,12 @@ namespace PracticeMath.UI
         private static string ProblemKey(MathProblem problem)
         {
             return problem.Operation + ":" + problem.LeftOperand + ":" + problem.RightOperand;
+        }
+
+        private void UpdateQuizStatusText(string message)
+        {
+            if (quizStatusText != null)
+                quizStatusText.text = message;
         }
 
         /// <summary>The problem currently shown (after the last <see cref="ShowNewProblem"/>).</summary>

@@ -130,6 +130,29 @@ namespace PracticeMath.UI
 
             MathProblem problem = practice.CurrentProblem;
             bool variantB = practice.CurrentProblemUsesVariantB;
+
+            if (practice.IsQuizActive)
+            {
+                bool quizCorrect = value == problem.CorrectAnswer;
+                Analytics?.NotifyAnswerAttempt(quizCorrect, practice.CurrentGrade, problem.Operation, variantB);
+
+                if (quizCorrect)
+                {
+                    SetFeedback("Correct");
+                    onAnswerCorrect?.Invoke();
+                }
+                else
+                {
+                    Analytics?.NotifyWrongValueSubmitted(value);
+                    SetFeedback($"Incorrect. Answer: {problem.CorrectAnswer}");
+                    onAnswerIncorrect?.Invoke();
+                }
+
+                ClearDigitsOnly();
+                practice.RecordQuizAnswer(quizCorrect);
+                return;
+            }
+
             if (value == problem.CorrectAnswer)
             {
                 Analytics?.NotifyAnswerAttempt(true, practice.CurrentGrade, problem.Operation, variantB);
