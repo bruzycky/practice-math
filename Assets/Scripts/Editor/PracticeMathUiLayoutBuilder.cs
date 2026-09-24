@@ -157,55 +157,20 @@ namespace PracticeMath.Editor
             var feedback = UiRuntimeFactory.CreateText(root, "Feedback", string.Empty, 28f, TextAlignmentOptions.Top);
             StretchTopBand(feedback.rectTransform, 172f, 980f, 48f);
 
-            var scrollGo = new GameObject("GridScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
-            scrollGo.transform.SetParent(root, false);
-            var scrollRt = scrollGo.GetComponent<RectTransform>();
-            scrollRt.anchorMin = new Vector2(0.04f, 0.06f);
-            scrollRt.anchorMax = new Vector2(0.96f, 1f);
-            scrollRt.offsetMin = Vector2.zero;
-            scrollRt.offsetMax = new Vector2(0f, -230f);
-            scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.12f);
+            const float cellW = 64f;
+            const float cellH = 50f;
+            const float gap = 3f;
 
-            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
-            viewport.transform.SetParent(scrollGo.transform, false);
-            var viewportRt = viewport.GetComponent<RectTransform>();
-            viewportRt.anchorMin = Vector2.zero;
-            viewportRt.anchorMax = Vector2.one;
-            viewportRt.offsetMin = Vector2.zero;
-            viewportRt.offsetMax = Vector2.zero;
-            viewport.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.02f);
-            viewport.GetComponent<Mask>().showMaskGraphic = false;
+            var chartMount = new GameObject("ChartMount", typeof(RectTransform));
+            chartMount.transform.SetParent(root, false);
+            var mountRt = chartMount.GetComponent<RectTransform>();
+            mountRt.anchorMin = new Vector2(0.5f, 0f);
+            mountRt.anchorMax = new Vector2(0.5f, 1f);
+            mountRt.pivot = new Vector2(0.5f, 0.5f);
+            mountRt.anchoredPosition = new Vector2(0f, -70f);
+            mountRt.sizeDelta = new Vector2(920f, -260f);
 
-            var gridRoot = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup), typeof(ContentSizeFitter));
-            gridRoot.transform.SetParent(viewport.transform, false);
-            var gridRt = gridRoot.GetComponent<RectTransform>();
-            gridRt.anchorMin = new Vector2(0f, 1f);
-            gridRt.anchorMax = new Vector2(1f, 1f);
-            gridRt.pivot = new Vector2(0.5f, 1f);
-            var grid = gridRoot.GetComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(72f, 56f);
-            grid.spacing = new Vector2(4f, 4f);
-            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 13;
-            gridRoot.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            var scroll = scrollGo.GetComponent<ScrollRect>();
-            scroll.content = gridRt;
-            scroll.viewport = viewportRt;
-            scroll.horizontal = true;
-            scroll.vertical = true;
-
-            const int size = 13;
-            var cellViews = new TimesTableGridCellView[size * size];
-            int index = 0;
-            for (int r = 0; r < size; r++)
-            {
-                for (int c = 0; c < size; c++)
-                {
-                    cellViews[index++] = CreateGridCell(gridRt, controller, r, c);
-                }
-            }
-
+            var cellViews = BuildTimesTableChart(chartMount.transform, controller, cellW, cellH, gap);
             BindTimesTableGridController(controller, instruction, feedback, cellViews);
             return root.gameObject;
         }
@@ -314,11 +279,102 @@ namespace PracticeMath.Editor
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static TimesTableGridCellView CreateGridCell(RectTransform gridRoot, TimesTableGridController controller, int gridRow, int gridCol)
+        private static TimesTableGridCellView[] BuildTimesTableChart(
+            Transform mount,
+            TimesTableGridController controller,
+            float cellW,
+            float cellH,
+            float gap)
         {
-            var go = new GameObject($"Cell_{gridRow}_{gridCol}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(TimesTableGridCellView));
+            const int size = 13;
+
+            var chartRoot = new GameObject("Chart", typeof(RectTransform), typeof(GridLayoutGroup), typeof(ContentSizeFitter));
+            chartRoot.transform.SetParent(mount, false);
+            var chartRt = chartRoot.GetComponent<RectTransform>();
+            chartRt.anchorMin = new Vector2(0.5f, 0.5f);
+            chartRt.anchorMax = new Vector2(0.5f, 0.5f);
+            chartRt.pivot = new Vector2(0.5f, 0.5f);
+            chartRt.anchoredPosition = Vector2.zero;
+
+            var grid = chartRoot.GetComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(cellW, cellH);
+            grid.spacing = new Vector2(gap, gap);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = size;
+            grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
+            grid.childAlignment = TextAnchor.UpperLeft;
+
+            var fitter = chartRoot.GetComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var all = new TimesTableGridCellView[size * size];
+            int index = 0;
+            for (int gridRow = 0; gridRow < size; gridRow++)
+            {
+                for (int gridCol = 0; gridCol < size; gridCol++)
+                {
+                    ResolveUnifiedGridCell(gridRow, gridCol, out var role, out int rowFactor, out int colFactor, out string text);
+                    all[index++] = CreateUnifiedGridCell(chartRt, controller, role, rowFactor, colFactor, text);
+                }
+            }
+
+            return all;
+        }
+
+        private static void ResolveUnifiedGridCell(
+            int gridRow,
+            int gridCol,
+            out TimesTableGridCellRole role,
+            out int rowFactor,
+            out int columnFactor,
+            out string text)
+        {
+            if (gridRow == 0 && gridCol == 0)
+            {
+                role = TimesTableGridCellRole.Corner;
+                rowFactor = 0;
+                columnFactor = 0;
+                text = string.Empty;
+                return;
+            }
+
+            if (gridRow == 0)
+            {
+                role = TimesTableGridCellRole.ColumnHeader;
+                rowFactor = 0;
+                columnFactor = gridCol;
+                text = gridCol.ToString();
+                return;
+            }
+
+            if (gridCol == 0)
+            {
+                role = TimesTableGridCellRole.RowHeader;
+                rowFactor = gridRow;
+                columnFactor = 0;
+                text = gridRow.ToString();
+                return;
+            }
+
+            role = TimesTableGridCellRole.Product;
+            rowFactor = gridRow;
+            columnFactor = gridCol;
+            text = (gridRow * gridCol).ToString();
+        }
+
+        private static TimesTableGridCellView CreateUnifiedGridCell(
+            RectTransform gridRoot,
+            TimesTableGridController controller,
+            TimesTableGridCellRole role,
+            int rowFactor,
+            int columnFactor,
+            string text)
+        {
+            var go = new GameObject($"Cell_{rowFactor}_{columnFactor}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(TimesTableGridCellView));
             go.transform.SetParent(gridRoot, false);
-            var label = UiRuntimeFactory.CreateText(go.GetComponent<RectTransform>(), "Label", string.Empty, 22f, TextAlignmentOptions.Center);
+
+            var label = UiRuntimeFactory.CreateText(go.GetComponent<RectTransform>(), "Label", string.Empty, 20f, TextAlignmentOptions.Center);
             var labelRt = label.rectTransform;
             labelRt.anchorMin = Vector2.zero;
             labelRt.anchorMax = Vector2.one;
@@ -326,41 +382,7 @@ namespace PracticeMath.Editor
             labelRt.offsetMax = Vector2.zero;
 
             var view = go.GetComponent<TimesTableGridCellView>();
-            TimesTableGridCellRole role;
-            int rowFactor;
-            int colFactor;
-            string text;
-
-            if (gridRow == 0 && gridCol == 0)
-            {
-                role = TimesTableGridCellRole.Corner;
-                rowFactor = 0;
-                colFactor = 0;
-                text = "×";
-            }
-            else if (gridRow == 0)
-            {
-                role = TimesTableGridCellRole.ColumnHeader;
-                rowFactor = 0;
-                colFactor = gridCol;
-                text = gridCol.ToString();
-            }
-            else if (gridCol == 0)
-            {
-                role = TimesTableGridCellRole.RowHeader;
-                rowFactor = gridRow;
-                colFactor = 0;
-                text = gridRow.ToString();
-            }
-            else
-            {
-                role = TimesTableGridCellRole.Product;
-                rowFactor = gridRow;
-                colFactor = gridCol;
-                text = (gridRow * gridCol).ToString();
-            }
-
-            view.Configure(controller, role, rowFactor, colFactor, text);
+            view.Configure(controller, role, rowFactor, columnFactor, text);
             return view;
         }
 

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace PracticeMath.UI
 {
-    /// <summary>Interactive 1–12 multiplication chart. Pick row and column factors, then tap the product cell.</summary>
+    /// <summary>Interactive 1–12 multiplication chart with animated row/column highlights.</summary>
     public sealed class TimesTableGridController : MonoBehaviour
     {
         private const int MinFactor = 1;
@@ -13,13 +13,20 @@ namespace PracticeMath.UI
         [SerializeField] private TextMeshProUGUI instructionText;
         [SerializeField] private TextMeshProUGUI feedbackText;
         [SerializeField] private TimesTableGridCellView[] cells;
+        [SerializeField] private float stepSeconds = 0.1f;
+        [SerializeField] private float pulsePeakScale = 1.18f;
+
+        private readonly TimesTableGridCellView[,] _products = new TimesTableGridCellView[MaxFactor + 1, MaxFactor + 1];
+        private readonly TimesTableGridCellView[] _rowHeaders = new TimesTableGridCellView[MaxFactor + 1];
+        private readonly TimesTableGridCellView[] _colHeaders = new TimesTableGridCellView[MaxFactor + 1];
 
         private int _selectedRow = -1;
         private int _selectedColumn = -1;
-        private Coroutine _feedbackResetRoutine;
+        private Coroutine _stripRoutine;
 
         private void Start()
         {
+            BuildLookup();
             RefreshInstruction();
             if (feedbackText != null)
                 feedbackText.text = string.Empty;
@@ -48,50 +55,122 @@ namespace PracticeMath.UI
         {
             if (row < MinFactor || row > MaxFactor)
                 return;
+
             _selectedRow = row;
             UpdateHeaderHighlights();
-            RefreshInstruction();
             ClearFeedback();
+            RestartStripAnimation();
+            RefreshInstruction();
         }
 
         private void SelectColumn(int column)
         {
             if (column < MinFactor || column > MaxFactor)
                 return;
+
             _selectedColumn = column;
             UpdateHeaderHighlights();
-            RefreshInstruction();
             ClearFeedback();
+            RestartStripAnimation();
+            RefreshInstruction();
         }
 
         private void OnProductClicked(TimesTableGridCellView cell)
         {
-            int row = cell.RowFactor;
-            int column = cell.ColumnFactor;
-            int product = cell.Product;
-
             if (_selectedRow >= MinFactor && _selectedColumn >= MinFactor)
             {
-                int expected = _selectedRow * _selectedColumn;
-                if (row == _selectedRow && column == _selectedColumn)
+                if (cell.RowFactor == _selectedRow && cell.ColumnFactor == _selectedColumn)
                 {
-                    ShowFeedback($"{_selectedRow} × {_selectedColumn} = {product}", false);
-                    HighlightProductCell(cell, false);
-                    ScheduleResetSelection(1.2f);
+                    ShowFeedback($"{_selectedRow} × {_selectedColumn} = {cell.Product}", false);
                     return;
                 }
 
-                ShowFeedback("Not that cell — find where your row and column meet.", true);
-                HighlightProductCell(cell, true);
-                StartCoroutine(ClearProductHighlightAfterDelay(cell, 0.45f));
+                ShowFeedback("Follow the highlighted row and column to where they meet.", true);
+                cell.SetWrongFlash();
+                StartCoroutine(ClearWrongAfter(cell, 0.35f));
                 return;
             }
 
-            _selectedRow = row;
-            _selectedColumn = column;
+            _selectedRow = cell.RowFactor;
+            _selectedColumn = cell.ColumnFactor;
             UpdateHeaderHighlights();
-            ShowFeedback($"{row} × {column} = {product}", false);
-            HighlightProductCell(cell, false);
+            RestartStripAnimation();
+            ShowFeedback($"{cell.RowFactor} × {cell.ColumnFactor} = {cell.Product}", false);
+            RefreshInstruction();
+        }
+
+        private void RestartStripAnimation()
+        {
+            if (_stripRoutine != null)
+                StopCoroutine(_stripRoutine);
+
+            ClearProductStripHighlights();
+
+            if (_selectedColumn >= MinFactor && _selectedRow >= MinFactor)
+                _stripRoutine = StartCoroutine(AnimateBothSelections());
+            else if (_selectedColumn >= MinFactor)
+                _stripRoutine = StartCoroutine(AnimateColumn(_selectedColumn, stopAtRow: -1));
+            else if (_selectedRow >= MinFactor)
+                _stripRoutine = StartCoroutine(AnimateRow(_selectedRow, stopAtColumn: -1));
+        }
+
+        private IEnumerator AnimateBothSelections()
+        {
+            yield return StartCoroutine(AnimateColumn(_selectedColumn, stopAtRow: -1));
+            yield return StartCoroutine(AnimateRow(_selectedRow, stopAtColumn: _selectedColumn, finaleAtIntersection: true));
+            ShowIntersectionAnswer();
+        }
+
+        private IEnumerator AnimateColumn(int column, int stopAtRow)
+        {
+            for (int row = MinFactor; row <= MaxFactor; row++)
+            {
+                if (stopAtRow >= MinFactor && row > stopAtRow)
+                    break;
+
+                var cell = _products[row, column];
+                if (cell == null)
+                    continue;
+
+                bool isIntersection = _selectedRow == row && _selectedColumn == column;
+                cell.SetStripHighlight(isIntersection ? TimesTableGridStripHighlight.Intersection : TimesTableGridStripHighlight.Column);
+                yield return cell.PlayPulse(stepSeconds, pulsePeakScale, settleHighlighted: true);
+            }
+        }
+
+        private IEnumerator AnimateRow(int row, int stopAtColumn, bool finaleAtIntersection = false)
+        {
+            for (int col = MinFactor; col <= MaxFactor; col++)
+            {
+                if (stopAtColumn >= MinFactor && col > stopAtColumn)
+                    break;
+
+                var cell = _products[row, col];
+                if (cell == null)
+                    continue;
+
+                bool isIntersection = finaleAtIntersection && col == stopAtColumn && row == _selectedRow;
+                if (isIntersection)
+                    cell.SetStripHighlight(TimesTableGridStripHighlight.Intersection);
+                else if (cell != null)
+                    cell.SetStripHighlight(TimesTableGridStripHighlight.Row);
+
+                float peak = isIntersection ? pulsePeakScale * 1.12f : pulsePeakScale;
+                yield return cell.PlayPulse(stepSeconds, peak, settleHighlighted: true);
+            }
+        }
+
+        private void ShowIntersectionAnswer()
+        {
+            if (_selectedRow < MinFactor || _selectedColumn < MinFactor)
+                return;
+
+            int product = _selectedRow * _selectedColumn;
+            var cell = _products[_selectedRow, _selectedColumn];
+            if (cell != null)
+                cell.SetStripHighlight(TimesTableGridStripHighlight.Intersection);
+
+            ShowFeedback($"{_selectedRow} × {_selectedColumn} = {product}", false);
             RefreshInstruction();
         }
 
@@ -102,15 +181,13 @@ namespace PracticeMath.UI
 
             if (_selectedRow >= MinFactor && _selectedColumn >= MinFactor)
             {
-                int answer = _selectedRow * _selectedColumn;
-                instructionText.text =
-                    $"{_selectedRow} × {_selectedColumn} = ? Tap {answer} where that row and column meet.";
+                instructionText.text = $"Watch the highlights meet at {_selectedRow} × {_selectedColumn}.";
                 return;
             }
 
             if (_selectedRow >= MinFactor)
             {
-                instructionText.text = $"Row {_selectedRow} selected. Now tap a number on the top row.";
+                instructionText.text = $"Row {_selectedRow} selected. Now tap a number along the top.";
                 return;
             }
 
@@ -120,36 +197,72 @@ namespace PracticeMath.UI
                 return;
             }
 
-            instructionText.text = "Tap a row number, then a column number, then tap the matching answer in the chart.";
+            instructionText.text = "Tap a number on the top, then on the left, to see where they meet.";
         }
 
         private void UpdateHeaderHighlights()
         {
+            for (int i = MinFactor; i <= MaxFactor; i++)
+            {
+                if (_rowHeaders[i] != null)
+                    _rowHeaders[i].SetHeaderSelected(i == _selectedRow);
+                if (_colHeaders[i] != null)
+                    _colHeaders[i].SetHeaderSelected(i == _selectedColumn);
+            }
+        }
+
+        private void ClearProductStripHighlights()
+        {
+            for (int r = MinFactor; r <= MaxFactor; r++)
+            {
+                for (int c = MinFactor; c <= MaxFactor; c++)
+                {
+                    if (_products[r, c] != null)
+                        _products[r, c].ResetVisuals();
+                }
+            }
+        }
+
+        private void BuildLookup()
+        {
+            for (int r = 0; r <= MaxFactor; r++)
+            {
+                for (int c = 0; c <= MaxFactor; c++)
+                    _products[r, c] = null;
+                _rowHeaders[r] = null;
+                _colHeaders[r] = null;
+            }
+
             if (cells == null)
                 return;
 
             foreach (var cell in cells)
             {
+                cell?.EnsureClickWired();
+            }
+
+            foreach (var cell in cells)
+            {
                 if (cell == null)
                     continue;
-                if (cell.Role == TimesTableGridCellRole.RowHeader)
-                    cell.SetHeaderSelected(cell.RowFactor == _selectedRow);
-                else if (cell.Role == TimesTableGridCellRole.ColumnHeader)
-                    cell.SetHeaderSelected(cell.ColumnFactor == _selectedColumn);
-            }
-        }
 
-        private void HighlightProductCell(TimesTableGridCellView cell, bool wrong)
-        {
-            if (cells == null)
-                return;
-            foreach (var c in cells)
-            {
-                if (c != null && c.Role == TimesTableGridCellRole.Product)
-                    c.SetProductHighlight(false);
+                switch (cell.Role)
+                {
+                    case TimesTableGridCellRole.Product:
+                        if (cell.RowFactor >= MinFactor && cell.RowFactor <= MaxFactor &&
+                            cell.ColumnFactor >= MinFactor && cell.ColumnFactor <= MaxFactor)
+                            _products[cell.RowFactor, cell.ColumnFactor] = cell;
+                        break;
+                    case TimesTableGridCellRole.RowHeader:
+                        if (cell.RowFactor >= MinFactor && cell.RowFactor <= MaxFactor)
+                            _rowHeaders[cell.RowFactor] = cell;
+                        break;
+                    case TimesTableGridCellRole.ColumnHeader:
+                        if (cell.ColumnFactor >= MinFactor && cell.ColumnFactor <= MaxFactor)
+                            _colHeaders[cell.ColumnFactor] = cell;
+                        break;
+                }
             }
-
-            cell?.SetProductHighlight(true, wrong);
         }
 
         private void ShowFeedback(string message, bool isTryAgain)
@@ -162,51 +275,20 @@ namespace PracticeMath.UI
 
         private void ClearFeedback()
         {
-            if (_feedbackResetRoutine != null)
-            {
-                StopCoroutine(_feedbackResetRoutine);
-                _feedbackResetRoutine = null;
-            }
-
             if (feedbackText != null)
                 feedbackText.text = string.Empty;
         }
 
-        private IEnumerator ClearProductHighlightAfterDelay(TimesTableGridCellView cell, float seconds)
+        private IEnumerator ClearWrongAfter(TimesTableGridCellView cell, float seconds)
         {
             yield return new WaitForSeconds(seconds);
-            cell?.SetProductHighlight(false);
+            if (cell == null)
+                yield break;
+            if (_selectedRow >= MinFactor && _selectedColumn >= MinFactor)
+                RestartStripAnimation();
+            else
+                cell.ResetVisuals();
         }
 
-        private void ScheduleResetSelection(float seconds)
-        {
-            if (_feedbackResetRoutine != null)
-                StopCoroutine(_feedbackResetRoutine);
-            _feedbackResetRoutine = StartCoroutine(ResetSelectionAfterDelayRoutine(seconds));
-        }
-
-        private IEnumerator ResetSelectionAfterDelayRoutine(float seconds)
-        {
-            yield return new WaitForSeconds(seconds);
-            _feedbackResetRoutine = null;
-            ResetSelection();
-        }
-
-        private void ResetSelection()
-        {
-            _selectedRow = -1;
-            _selectedColumn = -1;
-            if (cells != null)
-            {
-                foreach (var cell in cells)
-                {
-                    if (cell != null)
-                        cell.ResetVisuals();
-                }
-            }
-
-            ClearFeedback();
-            RefreshInstruction();
-        }
     }
 }

@@ -39,6 +39,25 @@ namespace PracticeMath.Editor
                 "OK");
         }
 
+        [MenuItem("Practice Math/UI/1c. Force Regenerate Times Table Grid Prefab Only")]
+        public static void ForceRegenerateTimesTableGridPrefab()
+        {
+            if (!EditorUtility.DisplayDialog(
+                    "Overwrite Times Table Grid prefab?",
+                    "Replaces TimesTableGridPanel with the latest chart layout (separate header row + 12×12 products). Other prefabs are not changed.",
+                    "Overwrite grid prefab",
+                    "Cancel"))
+            {
+                return;
+            }
+
+            EnsureFolder(PracticeMathUiLayoutBuilder.PrefabFolder);
+            SavePrefab(PracticeMathUiLayoutBuilder.BuildTimesTableGridPanel(), TimesGridPrefabPath);
+            EnsureHomeNavOnPrefab(TimesGridPrefabPath);
+            AssetDatabase.SaveAssets();
+            EditorUtility.DisplayDialog("Practice Math UI", "TimesTableGridPanel prefab was regenerated.", "OK");
+        }
+
         [MenuItem("Practice Math/UI/1b. Force Regenerate All UI Prefabs (overwrites edits)")]
         public static void ForceGeneratePrefabs()
         {
@@ -80,7 +99,7 @@ namespace PracticeMath.Editor
             ApplyToScene(GameScenes.Home, HomePrefabPath, typeof(HomeHubController));
             ApplyToScene(GameScenes.TimesTables, TimesPrefabPath, typeof(TimesTablePracticeController));
             if (PrefabExists(TimesGridPrefabPath))
-                ApplyToScene(GameScenes.TimesTableGrid, TimesGridPrefabPath, typeof(TimesTableGridController));
+                ApplyToScene(GameScenes.TimesTableGrid, TimesGridPrefabPath, typeof(TimesTableGridController), replaceIfLegacyChart: true);
             ApplyToScene(GameScenes.MultipleChoice, McPrefabPath, typeof(MultipleChoiceActivityController));
             EnsurePracticeMathHomeButton();
             EnsureSceneInBuildSettings(GameScenes.TimesTableGrid);
@@ -99,18 +118,23 @@ namespace PracticeMath.Editor
             ApplyPrefabsToScenes();
         }
 
-        private static void ApplyToScene(string sceneName, string prefabPath, System.Type controllerType)
+        private static void ApplyToScene(string sceneName, string prefabPath, System.Type controllerType, bool replaceIfLegacyChart = false)
         {
             var scene = EditorSceneManager.OpenScene($"Assets/Scenes/{sceneName}.unity", OpenSceneMode.Single);
 
             var existing = FindPrefabInstanceRoot(prefabPath, controllerType);
             if (existing != null)
             {
-                EnsureHomeNavButtonView(existing.transform);
-                EnsureEventSystemInScene();
-                EditorSceneManager.MarkSceneDirty(scene);
-                EditorSceneManager.SaveScene(scene);
-                return;
+                if (replaceIfLegacyChart && UsesLegacyTimesTableChart(existing))
+                    Object.DestroyImmediate(existing);
+                else
+                {
+                    EnsureHomeNavButtonView(existing.transform);
+                    EnsureEventSystemInScene();
+                    EditorSceneManager.MarkSceneDirty(scene);
+                    EditorSceneManager.SaveScene(scene);
+                    return;
+                }
             }
 
             RemoveLegacyRuntimeRoots(scene, controllerType);
@@ -129,6 +153,30 @@ namespace PracticeMath.Editor
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
+        }
+
+        private static bool UsesLegacyTimesTableChart(GameObject panelRoot)
+        {
+            if (panelRoot == null)
+                return false;
+
+            if (panelRoot.GetComponentInChildren<UnityEngine.UI.ScrollRect>(true) != null)
+                return true;
+
+            var chart = panelRoot.transform.Find("ChartMount/Chart");
+            if (chart == null)
+            {
+                chart = panelRoot.transform.Find("GridScroll/Viewport/Chart");
+                if (chart != null)
+                    return true;
+                return true;
+            }
+
+            if (chart.Find("ColumnHeaderRow") != null || chart.Find("ProductGrid") != null)
+                return true;
+
+            var grid = chart.GetComponent<UnityEngine.UI.GridLayoutGroup>();
+            return grid == null || grid.constraintCount != 13;
         }
 
         private static GameObject FindPrefabInstanceRoot(string prefabPath, System.Type controllerType)
