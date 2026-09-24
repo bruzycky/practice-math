@@ -1,6 +1,7 @@
 using PracticeMath.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace PracticeMath.Navigation
 {
@@ -22,6 +23,26 @@ namespace PracticeMath.Navigation
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             UiEventSystemUtility.EnsureConfigured();
+            EnsureHomeNavButtons(scene);
+        }
+
+        private static void EnsureHomeNavButtons(Scene scene)
+        {
+            if (!scene.isLoaded)
+                return;
+
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                foreach (var t in root.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t.name != "HomeNavButton")
+                        continue;
+                    if (t.GetComponent<Button>() == null)
+                        continue;
+                    if (t.GetComponent<HomeNavButtonView>() == null)
+                        t.gameObject.AddComponent<HomeNavButtonView>();
+                }
+            }
         }
     }
 }

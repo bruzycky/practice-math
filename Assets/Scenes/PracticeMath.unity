@@ -1826,6 +1826,7 @@ GameObject:
   - component: {fileID: 302216262}
   - component: {fileID: 302216261}
   - component: {fileID: 302216260}
+  - component: {fileID: 302216263}
   m_Layer: 0
   m_Name: HomeNavButton
   m_TagString: Untagged
@@ -1947,6 +1948,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 302216258}
   m_CullTransparentMesh: 1
+--- !u!114 &302216263
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 302216258}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2c4d6e8f0a142638495a6b7c8d9e0f1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PracticeMath.UI.HomeNavButtonView
 --- !u!1 &419299807
 GameObject:
   m_ObjectHideFlags: 0

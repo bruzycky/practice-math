@@ -1,4 +1,3 @@
-using PracticeMath.Navigation;
 using UnityEngine;
 
 namespace PracticeMath.UI
@@ -14,8 +13,10 @@ namespace PracticeMath.UI
             if (parent.Find("HomeNavButton") != null)
                 return;
 
-            var btn = UiRuntimeFactory.CreateButton(parent, "Home", new Vector2(180f, 64f), GameSceneLoader.LoadHome);
+            var btn = UiRuntimeFactory.CreateButton(parent, "Home", new Vector2(180f, 64f), null);
             btn.gameObject.name = "HomeNavButton";
+            if (btn.GetComponent<HomeNavButtonView>() == null)
+                btn.gameObject.AddComponent<HomeNavButtonView>();
             var rt = btn.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(0f, 1f);

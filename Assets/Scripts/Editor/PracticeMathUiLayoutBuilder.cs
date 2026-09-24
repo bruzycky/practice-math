@@ -64,14 +64,15 @@ namespace PracticeMath.Editor
             scroll.horizontal = false;
             scroll.vertical = true;
 
-            var tiles = new HomeNavTileView[7];
+            var tiles = new HomeNavTileView[8];
             tiles[0] = AddTile(contentRt, "Practice (+ − × ÷)", "Endless problems at your grade level", LearningModule.Practice);
             tiles[1] = AddTile(contentRt, "10-Question Quiz", "Mixed quiz with score at the end", LearningModule.Quiz);
-            tiles[2] = AddTile(contentRt, "Times Tables (0–12)", "Full multiplication table practice", LearningModule.TimesTables);
-            tiles[3] = AddTile(contentRt, "Shapes & Space", "Geometry multiple choice", LearningModule.Geometry);
-            tiles[4] = AddTile(contentRt, "Patterns", "What comes next?", LearningModule.Patterns);
-            tiles[5] = AddTile(contentRt, "Money (Canada)", "Coins, bills, and change", LearningModule.Money);
-            tiles[6] = AddTile(contentRt, "Charts & Data", "Graphs, tallies, and likelihood", LearningModule.Data);
+            tiles[2] = AddTile(contentRt, "Times Table Chart", "Learn with the 1–12 multiplication grid", LearningModule.TimesTableGrid);
+            tiles[3] = AddTile(contentRt, "Times Tables Quiz", "Type answers for the 0–12 tables", LearningModule.TimesTables);
+            tiles[4] = AddTile(contentRt, "Shapes & Space", "Geometry multiple choice", LearningModule.Geometry);
+            tiles[5] = AddTile(contentRt, "Patterns", "What comes next?", LearningModule.Patterns);
+            tiles[6] = AddTile(contentRt, "Money (Canada)", "Coins, bills, and change", LearningModule.Money);
+            tiles[7] = AddTile(contentRt, "Charts & Data", "Graphs, tallies, and likelihood", LearningModule.Data);
 
             var headerRoot = new GameObject("Header", typeof(RectTransform));
             headerRoot.transform.SetParent(root, false);
@@ -103,7 +104,7 @@ namespace PracticeMath.Editor
             var controller = root.gameObject.AddComponent<TimesTablePracticeController>();
             UiHomeNavButton.AddTo(root);
 
-            UiRuntimeFactory.CreateText(root, "Title", "Times Tables (0–12)", 48f, TextAlignmentOptions.Top);
+            UiRuntimeFactory.CreateText(root, "Title", "Times Tables Quiz (0–12)", 48f, TextAlignmentOptions.Top);
             var dropdown = UiRuntimeFactory.CreateGradeDropdown(root, 0);
             dropdown.name = "TableDropdown";
             var tableDropdown = dropdown;
@@ -140,6 +141,72 @@ namespace PracticeMath.Editor
             WireKeypadButton(panelRt, "Check", controller, -3);
 
             BindTimesTableController(controller, tableDropdown, prompt, answer, feedback);
+            return root.gameObject;
+        }
+
+        public static GameObject BuildTimesTableGridPanel()
+        {
+            UiRuntimeFactory.CreateScreenCanvas("TimesTableGridCanvas", out RectTransform root);
+            var controller = root.gameObject.AddComponent<TimesTableGridController>();
+            UiHomeNavButton.AddTo(root);
+
+            var title = UiRuntimeFactory.CreateText(root, "Title", "Times Table Chart (1–12)", 44f, TextAlignmentOptions.Top);
+            StretchTopBand(title.rectTransform, 24f, 1000f, 64f);
+            var instruction = UiRuntimeFactory.CreateText(root, "Instruction", string.Empty, 26f, TextAlignmentOptions.Top);
+            StretchTopBand(instruction.rectTransform, 96f, 980f, 72f);
+            var feedback = UiRuntimeFactory.CreateText(root, "Feedback", string.Empty, 28f, TextAlignmentOptions.Top);
+            StretchTopBand(feedback.rectTransform, 172f, 980f, 48f);
+
+            var scrollGo = new GameObject("GridScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+            scrollGo.transform.SetParent(root, false);
+            var scrollRt = scrollGo.GetComponent<RectTransform>();
+            scrollRt.anchorMin = new Vector2(0.04f, 0.06f);
+            scrollRt.anchorMax = new Vector2(0.96f, 1f);
+            scrollRt.offsetMin = Vector2.zero;
+            scrollRt.offsetMax = new Vector2(0f, -230f);
+            scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.12f);
+
+            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            viewport.transform.SetParent(scrollGo.transform, false);
+            var viewportRt = viewport.GetComponent<RectTransform>();
+            viewportRt.anchorMin = Vector2.zero;
+            viewportRt.anchorMax = Vector2.one;
+            viewportRt.offsetMin = Vector2.zero;
+            viewportRt.offsetMax = Vector2.zero;
+            viewport.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.02f);
+            viewport.GetComponent<Mask>().showMaskGraphic = false;
+
+            var gridRoot = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup), typeof(ContentSizeFitter));
+            gridRoot.transform.SetParent(viewport.transform, false);
+            var gridRt = gridRoot.GetComponent<RectTransform>();
+            gridRt.anchorMin = new Vector2(0f, 1f);
+            gridRt.anchorMax = new Vector2(1f, 1f);
+            gridRt.pivot = new Vector2(0.5f, 1f);
+            var grid = gridRoot.GetComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(72f, 56f);
+            grid.spacing = new Vector2(4f, 4f);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 13;
+            gridRoot.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = scrollGo.GetComponent<ScrollRect>();
+            scroll.content = gridRt;
+            scroll.viewport = viewportRt;
+            scroll.horizontal = true;
+            scroll.vertical = true;
+
+            const int size = 13;
+            var cellViews = new TimesTableGridCellView[size * size];
+            int index = 0;
+            for (int r = 0; r < size; r++)
+            {
+                for (int c = 0; c < size; c++)
+                {
+                    cellViews[index++] = CreateGridCell(gridRt, controller, r, c);
+                }
+            }
+
+            BindTimesTableGridController(controller, instruction, feedback, cellViews);
             return root.gameObject;
         }
 
@@ -230,6 +297,71 @@ namespace PracticeMath.Editor
             so.FindProperty("answerText").objectReferenceValue = answer;
             so.FindProperty("feedbackText").objectReferenceValue = feedback;
             so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void BindTimesTableGridController(
+            TimesTableGridController controller,
+            TextMeshProUGUI instruction,
+            TextMeshProUGUI feedback,
+            TimesTableGridCellView[] cells)
+        {
+            var so = new SerializedObject(controller);
+            so.FindProperty("instructionText").objectReferenceValue = instruction;
+            so.FindProperty("feedbackText").objectReferenceValue = feedback;
+            so.FindProperty("cells").arraySize = cells.Length;
+            for (int i = 0; i < cells.Length; i++)
+                so.FindProperty("cells").GetArrayElementAtIndex(i).objectReferenceValue = cells[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static TimesTableGridCellView CreateGridCell(RectTransform gridRoot, TimesTableGridController controller, int gridRow, int gridCol)
+        {
+            var go = new GameObject($"Cell_{gridRow}_{gridCol}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(TimesTableGridCellView));
+            go.transform.SetParent(gridRoot, false);
+            var label = UiRuntimeFactory.CreateText(go.GetComponent<RectTransform>(), "Label", string.Empty, 22f, TextAlignmentOptions.Center);
+            var labelRt = label.rectTransform;
+            labelRt.anchorMin = Vector2.zero;
+            labelRt.anchorMax = Vector2.one;
+            labelRt.offsetMin = Vector2.zero;
+            labelRt.offsetMax = Vector2.zero;
+
+            var view = go.GetComponent<TimesTableGridCellView>();
+            TimesTableGridCellRole role;
+            int rowFactor;
+            int colFactor;
+            string text;
+
+            if (gridRow == 0 && gridCol == 0)
+            {
+                role = TimesTableGridCellRole.Corner;
+                rowFactor = 0;
+                colFactor = 0;
+                text = "×";
+            }
+            else if (gridRow == 0)
+            {
+                role = TimesTableGridCellRole.ColumnHeader;
+                rowFactor = 0;
+                colFactor = gridCol;
+                text = gridCol.ToString();
+            }
+            else if (gridCol == 0)
+            {
+                role = TimesTableGridCellRole.RowHeader;
+                rowFactor = gridRow;
+                colFactor = 0;
+                text = gridRow.ToString();
+            }
+            else
+            {
+                role = TimesTableGridCellRole.Product;
+                rowFactor = gridRow;
+                colFactor = gridCol;
+                text = (gridRow * gridCol).ToString();
+            }
+
+            view.Configure(controller, role, rowFactor, colFactor, text);
+            return view;
         }
 
         private static void BindMultipleChoiceController(

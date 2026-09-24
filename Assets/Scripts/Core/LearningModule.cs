@@ -9,6 +9,7 @@ namespace PracticeMath.Core
         Geometry = 3,
         Patterns = 4,
         Money = 5,
-        Data = 6
+        Data = 6,
+        TimesTableGrid = 7
     }
 }

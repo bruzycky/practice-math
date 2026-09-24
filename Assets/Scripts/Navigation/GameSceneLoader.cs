@@ -28,6 +28,9 @@ namespace PracticeMath.Navigation
                 case LearningModule.TimesTables:
                     SceneManager.LoadScene(GameScenes.TimesTables);
                     break;
+                case LearningModule.TimesTableGrid:
+                    SceneManager.LoadScene(GameScenes.TimesTableGrid);
+                    break;
                 case LearningModule.Geometry:
                 case LearningModule.Patterns:
                 case LearningModule.Money:

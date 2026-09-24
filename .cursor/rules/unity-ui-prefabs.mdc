@@ -1,0 +1,18 @@
+---
+description: Unity UI must stay prefab-first so layouts are editable in the Editor
+globs: Assets/Scripts/**/*.cs,Assets/Prefabs/**,Assets/Scenes/**
+alwaysApply: true
+---
+
+# Practice Math UI — prefab-first workflow
+
+When adding or changing screens, hubs, or activity UI:
+
+1. **Do not** build the main activity layout only at runtime in play mode. Put visuals on **Canvas prefabs** under `Assets/Prefabs/UI/` (or prefab instances in scenes).
+2. **Controllers** (`*Controller.cs`) hold logic and `[SerializeField]` references only. Wire buttons, text, and grid cells in the Inspector on the prefab.
+3. Default layouts belong in **`PracticeMathUiLayoutBuilder`**. **Generate Missing UI Prefabs** creates only absent prefabs; never overwrite existing prefab assets unless the user explicitly runs **Force Regenerate All UI Prefabs**.
+4. **Sync Scenes With Prefabs** / **Apply Prefabs To Learning Scenes** must not destroy existing prefab instances in scenes (preserve overrides). Panel **Home** buttons use **`HomeNavButtonView`** on `HomeNavButton`, not fragile runtime-only `Button.onClick` wiring.
+5. New learning activities need: prefab path in `PracticeMathUiEditorMenu`, a scene in `Assets/Scenes/`, entry in `GameScenes` / `GameSceneLoader` / build settings, and a hub tile on `HomeHubPanel`.
+6. After code changes that add new serialized UI fields, extend the layout builder for **new** prefabs only; tell the user to wire new references in the Inspector or run Force Regenerate if they opt in.
+
+`PracticeMath` practice/quiz scene may keep a scene-local Canvas; still prefer serialized references over creating widgets in `Start()`.
