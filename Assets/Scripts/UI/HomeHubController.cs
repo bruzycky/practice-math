@@ -8,8 +8,12 @@ namespace PracticeMath.UI
     /// <summary>Hub grade picker and navigation tiles. Layout is authored on a Canvas prefab or in the Home scene.</summary>
     public sealed class HomeHubController : MonoBehaviour
     {
+        [SerializeField] private GameObject headerRoot;
+        [SerializeField] private GameObject scrollRoot;
+        [SerializeField] private GameObject settingsGearButton;
         [SerializeField] private TMP_Dropdown gradeDropdown;
         [SerializeField] private HomeNavTileView[] navTiles;
+        [SerializeField] private HomeHubSettingsView settingsView;
 
         private void Start()
         {
@@ -46,6 +50,21 @@ namespace PracticeMath.UI
         public void LaunchModule(LearningModule module)
         {
             GameSceneLoader.Launch(module);
+        }
+
+        public void OpenSettings()
+        {
+            settingsView?.OpenSettings();
+        }
+
+        public void SetHubVisible(bool visible)
+        {
+            if (headerRoot != null)
+                headerRoot.SetActive(visible);
+            if (scrollRoot != null)
+                scrollRoot.SetActive(visible);
+            if (settingsGearButton != null)
+                settingsGearButton.SetActive(visible);
         }
 
         private void OnGradeChanged(int index)

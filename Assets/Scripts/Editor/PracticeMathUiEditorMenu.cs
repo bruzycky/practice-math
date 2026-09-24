@@ -22,12 +22,14 @@ namespace PracticeMath.Editor
         {
             EnsureFolder(PracticeMathUiLayoutBuilder.PrefabFolder);
 
+            SavePrefabIfMissing(HomeHubPanelUiFactory.BuildSettingsOverlay(), HomeHubPanelUiFactory.SettingsOverlayPrefabPath);
             SavePrefabIfMissing(PracticeMathUiLayoutBuilder.BuildHomePanel(), HomePrefabPath);
             SavePrefabIfMissing(PracticeMathUiLayoutBuilder.BuildTimesTablesPanel(), TimesPrefabPath);
             SavePrefabIfMissing(PracticeMathUiLayoutBuilder.BuildTimesTableGridPanel(), TimesGridPrefabPath);
             SavePrefabIfMissing(PracticeMathUiLayoutBuilder.BuildMultipleChoicePanel(), McPrefabPath);
 
             EnsureHomeNavOnPrefabs();
+            EnsureHomeSettingsOnHomePrefab();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -36,6 +38,116 @@ namespace PracticeMath.Editor
                 "Created any prefabs that were missing under Assets/Prefabs/UI/.\n\n" +
                 "Existing prefabs were left unchanged. Open prefabs to edit layout.\n\n" +
                 "Use \"Force Regenerate All UI Prefabs\" only if you want to discard prefab edits.",
+                "OK");
+        }
+
+        /// <summary>Batchmode entry point (no dialogs).</summary>
+        public static void BatchAddSettingsToHomeHubPrefab()
+        {
+            EnsureHomeSettingsOnHomePrefab();
+            AssetDatabase.SaveAssets();
+        }
+
+        [MenuItem("Practice Math/UI/1d. Add Settings UI To Home Hub Prefab")]
+        public static void AddSettingsToHomeHubPrefab()
+        {
+            if (!PrefabExists(HomePrefabPath))
+            {
+                EditorUtility.DisplayDialog("Practice Math UI", "HomeHubPanel prefab not found. Run Generate Missing UI Prefabs first.", "OK");
+                return;
+            }
+
+            EnsureSettingsOverlayPrefabAsset();
+            if (!EnsureHomeSettingsOnHomePrefab())
+            {
+                EditorUtility.DisplayDialog(
+                    "Practice Math UI",
+                    "Could not attach settings.\n\n" +
+                    "If settings were embedded directly on HomeHubPanel, run:\n" +
+                    "\"1g. Migrate Home Settings To Overlay Prefab\".",
+                    "OK");
+                return;
+            }
+
+            AssetDatabase.SaveAssets();
+            EditorUtility.DisplayDialog(
+                "Practice Math UI",
+                "Linked HomeHubSettingsOverlay on HomeHubPanel.\n\n" +
+                "Edit layout on Assets/Prefabs/UI/HomeHubSettingsOverlay.prefab.",
+                "OK");
+        }
+
+        [MenuItem("Practice Math/UI/1e. Generate Missing Home Settings Overlay Prefab")]
+        public static void GenerateSettingsOverlayPrefab()
+        {
+            EnsureFolder(PracticeMathUiLayoutBuilder.PrefabFolder);
+            SavePrefabIfMissing(HomeHubPanelUiFactory.BuildSettingsOverlay(), HomeHubPanelUiFactory.SettingsOverlayPrefabPath);
+            AssetDatabase.SaveAssets();
+            EditorUtility.DisplayDialog(
+                "Practice Math UI",
+                "HomeHubSettingsOverlay.prefab is under Assets/Prefabs/UI/ (created only if it was missing).",
+                "OK");
+        }
+
+        [MenuItem("Practice Math/UI/Open Home Settings Overlay Prefab")]
+        public static void OpenHomeSettingsOverlayPrefab()
+        {
+            EnsureSettingsOverlayPrefabAsset();
+            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(HomeHubPanelUiFactory.SettingsOverlayPrefabPath);
+            if (asset == null)
+            {
+                EditorUtility.DisplayDialog("Practice Math UI", "Could not find HomeHubSettingsOverlay.prefab.", "OK");
+                return;
+            }
+
+            Selection.activeObject = asset;
+            AssetDatabase.OpenAsset(asset);
+        }
+
+        [MenuItem("Practice Math/UI/1g. Migrate Home Settings To Overlay Prefab (replaces embedded UI)")]
+        public static void MigrateHomeSettingsToOverlayPrefab()
+        {
+            if (!PrefabExists(HomePrefabPath))
+            {
+                EditorUtility.DisplayDialog("Practice Math UI", "HomeHubPanel prefab not found.", "OK");
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog(
+                    "Migrate home settings?",
+                    "Removes settings UI embedded on HomeHubPanel and replaces it with a nested HomeHubSettingsOverlay prefab instance.\n\n" +
+                    "Custom edits on the old embedded objects will be lost. Edits on HomeHubSettingsOverlay.prefab are kept.",
+                    "Migrate",
+                    "Cancel"))
+            {
+                return;
+            }
+
+            EnsureSettingsOverlayPrefabAsset();
+
+            var root = PrefabUtility.LoadPrefabContents(HomePrefabPath);
+            try
+            {
+                if (!HomeHubPanelUiFactory.ReplaceLegacyEmbeddedSettingsWithOverlayPrefab(root))
+                {
+                    EditorUtility.DisplayDialog(
+                        "Practice Math UI",
+                        "Nothing to migrate (no embedded settings found), or overlay prefab is missing.",
+                        "OK");
+                    return;
+                }
+
+                PrefabUtility.SaveAsPrefabAsset(root, HomePrefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+
+            AssetDatabase.SaveAssets();
+            EditorUtility.DisplayDialog(
+                "Practice Math UI",
+                "Migration complete. Edit Assets/Prefabs/UI/HomeHubSettingsOverlay.prefab from now on.",
                 "OK");
         }
 
@@ -95,6 +207,7 @@ namespace PracticeMath.Editor
 
             EnsureLearningSceneFile(GameScenes.TimesTableGrid);
             EnsureHomeNavOnPrefabs();
+            EnsureHomeSettingsOnHomePrefab();
 
             ApplyToScene(GameScenes.Home, HomePrefabPath, typeof(HomeHubController));
             ApplyToScene(GameScenes.TimesTables, TimesPrefabPath, typeof(TimesTablePracticeController));
@@ -300,6 +413,40 @@ namespace PracticeMath.Editor
 
             home.gameObject.AddComponent<HomeNavButtonView>();
             return true;
+        }
+
+        private static void EnsureSettingsOverlayPrefabAsset()
+        {
+            EnsureFolder(PracticeMathUiLayoutBuilder.PrefabFolder);
+            SavePrefabIfMissing(
+                HomeHubPanelUiFactory.BuildSettingsOverlay(),
+                HomeHubPanelUiFactory.SettingsOverlayPrefabPath);
+        }
+
+        private static bool EnsureHomeSettingsOnHomePrefab()
+        {
+            if (!PrefabExists(HomePrefabPath))
+                return false;
+
+            EnsureSettingsOverlayPrefabAsset();
+
+            var root = PrefabUtility.LoadPrefabContents(HomePrefabPath);
+            try
+            {
+                HomeHubPanelUiFactory.TryAddSettingsUi(root);
+
+                var overlay = root.GetComponentInChildren<HomeHubSettingsOverlayRoot>(true);
+                if (overlay == null)
+                    return false;
+
+                HomeHubPanelUiFactory.WireSettingsOverlayToHomeHub(root, overlay.gameObject);
+                PrefabUtility.SaveAsPrefabAsset(root, HomePrefabPath);
+                return true;
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
         }
 
         private static Transform FindChildRecursive(Transform parent, string name)

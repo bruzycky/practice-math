@@ -145,6 +145,57 @@ namespace PracticeMath.UI
             return dropdown;
         }
 
+        /// <summary>Dropdown with empty options — fill before use.</summary>
+        public static TMP_Dropdown CreateLabeledDropdown(RectTransform parent, string objectName, int selectedIndex)
+        {
+            var template = CreateDropdownTemplate(parent);
+            var go = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(TMP_Dropdown));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(420f, 70f);
+
+            var bg = go.GetComponent<Image>();
+            bg.color = new Color(0.15f, 0.15f, 0.2f, 1f);
+
+            var labelGo = new GameObject("Label", typeof(RectTransform));
+            labelGo.transform.SetParent(go.transform, false);
+            var label = labelGo.AddComponent<TextMeshProUGUI>();
+            if (TMP_Settings.defaultFontAsset != null)
+                label.font = TMP_Settings.defaultFontAsset;
+            label.fontSize = 28f;
+            label.alignment = TextAlignmentOptions.MidlineLeft;
+            var labelRt = labelGo.GetComponent<RectTransform>();
+            labelRt.anchorMin = Vector2.zero;
+            labelRt.anchorMax = Vector2.one;
+            labelRt.offsetMin = new Vector2(20f, 6f);
+            labelRt.offsetMax = new Vector2(-40f, -6f);
+
+            var arrowGo = new GameObject("Arrow", typeof(RectTransform));
+            arrowGo.transform.SetParent(go.transform, false);
+            var arrow = arrowGo.AddComponent<TextMeshProUGUI>();
+            if (TMP_Settings.defaultFontAsset != null)
+                arrow.font = TMP_Settings.defaultFontAsset;
+            arrow.text = "▼";
+            arrow.fontSize = 24f;
+            arrow.alignment = TextAlignmentOptions.Center;
+            var arrowRt = arrowGo.GetComponent<RectTransform>();
+            arrowRt.anchorMin = new Vector2(1f, 0f);
+            arrowRt.anchorMax = new Vector2(1f, 1f);
+            arrowRt.sizeDelta = new Vector2(36f, 0f);
+            arrowRt.anchoredPosition = new Vector2(-18f, 0f);
+
+            var dropdown = go.GetComponent<TMP_Dropdown>();
+            dropdown.targetGraphic = bg;
+            dropdown.captionText = label;
+            dropdown.template = template.GetComponent<RectTransform>();
+            var itemLabel = template.transform.Find("Viewport/Content/Item/Item Label")?.GetComponent<TextMeshProUGUI>();
+            if (itemLabel != null)
+                dropdown.itemText = itemLabel;
+            dropdown.value = Mathf.Max(0, selectedIndex);
+            dropdown.RefreshShownValue();
+            return dropdown;
+        }
+
         private static GameObject CreateDropdownTemplate(RectTransform parent)
         {
             var template = new GameObject("Template", typeof(RectTransform), typeof(Image), typeof(ScrollRect));

@@ -95,6 +95,7 @@ namespace PracticeMath.Editor
             headerRoot.transform.SetAsLastSibling();
 
             BindHomeController(controller, dropdown, tiles);
+            HomeHubPanelUiFactory.TryAddSettingsUi(root.gameObject);
             return root.gameObject;
         }
 

@@ -22,6 +22,10 @@ namespace PracticeMath.UI
         {
             if (analytics != null)
                 analytics.Changed += OnAnalyticsChanged;
+        }
+
+        private void Start()
+        {
             Refresh();
         }
 
@@ -41,6 +45,14 @@ namespace PracticeMath.UI
         {
             if (panelRoot != null)
                 panelRoot.SetActive(!panelRoot.activeSelf);
+            Refresh();
+        }
+
+        /// <summary>Show the panel (e.g. home settings admin section).</summary>
+        public void ShowPanel()
+        {
+            if (panelRoot != null)
+                panelRoot.SetActive(true);
             Refresh();
         }
 

@@ -47,6 +47,8 @@ namespace PracticeMath.Analytics
         private float _checkpointActive;
         private float _checkpointIdle;
         private readonly float[] _checkpointGrade = new float[4];
+        private bool _sessionClockStarted;
+        private bool _retentionRegistered;
 
         public event Action Changed;
 
@@ -60,10 +62,41 @@ namespace PracticeMath.Analytics
         public int BestStreak => _bestStreak;
         public float SessionActiveSeconds => _sessionActiveSeconds;
         public float SessionIdleSeconds => _sessionIdleSeconds;
-        public int LastWrongAnswer => _p.hasLastWrong != 0 ? _p.lastWrongAnswer : 0;
-        public bool HasLastWrong => _p.hasLastWrong != 0;
-        public int CurrentDailyStreak => _p.currentDailyStreak;
-        public int BestDailyStreak => _p.bestDailyStreak;
+        public int LastWrongAnswer
+        {
+            get
+            {
+                EnsurePersistedLoaded();
+                return _p.hasLastWrong != 0 ? _p.lastWrongAnswer : 0;
+            }
+        }
+
+        public bool HasLastWrong
+        {
+            get
+            {
+                EnsurePersistedLoaded();
+                return _p.hasLastWrong != 0;
+            }
+        }
+
+        public int CurrentDailyStreak
+        {
+            get
+            {
+                EnsurePersistedLoaded();
+                return _p.currentDailyStreak;
+            }
+        }
+
+        public int BestDailyStreak
+        {
+            get
+            {
+                EnsurePersistedLoaded();
+                return _p.bestDailyStreak;
+            }
+        }
 
         public float Accuracy =>
             _totalSubmissions > 0 ? (float)_correctTotal / _totalSubmissions : 0f;
@@ -73,14 +106,36 @@ namespace PracticeMath.Analytics
 
         private void Awake()
         {
+            EnsurePersistedLoaded();
+            EnsureSessionClockStarted();
+            if (!_retentionRegistered)
+            {
+                RegisterSessionDayForRetention();
+                _retentionRegistered = true;
+            }
+        }
+
+        /// <summary>Safe if UI refreshes before Awake (e.g. home admin panel on the same prefab).</summary>
+        private void EnsurePersistedLoaded()
+        {
+            if (_p != null)
+                return;
+
             _p = PracticeStatsFileStore.LoadOrCreate();
             _p.dailyGoalProblems = dailyGoalProblems;
             _p.dailyGoalMinutes = dailyGoalMinutes;
+            RolloverTodayIfNeeded();
+        }
+
+        private void EnsureSessionClockStarted()
+        {
+            if (_sessionClockStarted)
+                return;
+
             _sessionStartUnscaled = Time.unscaledTime;
             _problemStartUnscaled = _sessionStartUnscaled;
             _lastSubmitUnscaled = _sessionStartUnscaled;
-            RolloverTodayIfNeeded();
-            RegisterSessionDayForRetention();
+            _sessionClockStarted = true;
         }
 
         private void Start()
@@ -295,6 +350,9 @@ namespace PracticeMath.Analytics
 
         private void CheckpointTimeIntoPersisted()
         {
+            EnsurePersistedLoaded();
+            EnsureSessionClockStarted();
+
             float dA = _sessionActiveSeconds - _checkpointActive;
             float dI = _sessionIdleSeconds - _checkpointIdle;
             _p.lifetimeActiveSeconds += dA;
