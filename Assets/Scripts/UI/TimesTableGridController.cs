@@ -158,7 +158,7 @@ namespace PracticeMath.UI
             UpdateHeaderHighlights();
             ClearFeedback();
             yield return RunStripRoutine(AnimateRadiateFromProduct(cell));
-            ShowFeedback($"{cell.RowFactor} × {cell.ColumnFactor} = {cell.Product}", false);
+            ShowFeedback(FormatMultiplicationFeedback(cell.RowFactor, cell.ColumnFactor), false);
             RefreshInstruction();
         }
 
@@ -586,8 +586,15 @@ namespace PracticeMath.UI
             if (cell != null)
                 cell.SetStripHighlight(TimesTableGridStripHighlight.Intersection);
 
-            ShowFeedback($"{_selectedRow} × {_selectedColumn} = {product}", false);
+            ShowFeedback(FormatMultiplicationFeedback(_selectedRow, _selectedColumn), false);
             RefreshInstruction();
+        }
+
+        private static string FormatMultiplicationFeedback(int rowFactor, int columnFactor)
+        {
+            int product = rowFactor * columnFactor;
+            return $"{rowFactor} × {columnFactor} = {product} " +
+                   $"({product} ÷ {columnFactor} = {rowFactor} or {product} ÷ {rowFactor} = {columnFactor})";
         }
 
         private void RefreshInstruction()
