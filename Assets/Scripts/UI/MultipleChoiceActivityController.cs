@@ -8,97 +8,48 @@ using UnityEngine.UI;
 
 namespace PracticeMath.UI
 {
+    /// <summary>Multiple-choice strand activity. Wire UI on the MultipleChoice scene Canvas.</summary>
     public sealed class MultipleChoiceActivityController : MonoBehaviour
     {
         private const int QuestionsPerSession = 10;
 
-        private TextMeshProUGUI _titleText;
-        private TextMeshProUGUI _promptText;
-        private TextMeshProUGUI _statusText;
-        private TextMeshProUGUI _feedbackText;
-        private RectTransform _optionsRoot;
+        [SerializeField] private TextMeshProUGUI titleText;
+        [SerializeField] private TextMeshProUGUI promptText;
+        [SerializeField] private TextMeshProUGUI statusText;
+        [SerializeField] private TextMeshProUGUI feedbackText;
+        [SerializeField] private Button[] optionButtons;
+        [SerializeField] private Button nextButton;
 
         private readonly List<MultipleChoiceQuestion> _pool = new List<MultipleChoiceQuestion>();
         private readonly List<MultipleChoiceQuestion> _sessionQueue = new List<MultipleChoiceQuestion>();
-        private readonly List<Button> _optionButtons = new List<Button>();
 
         private int _questionIndex;
         private MultipleChoiceQuestion _current;
         private bool _sessionComplete;
 
-        private void Awake()
+        private void Start()
         {
-            if (!UiRuntimeFactory.TryClaimBootstrapCanvas("MultipleChoiceCanvas", out RectTransform root))
+            if (nextButton != null)
+                nextButton.onClick.AddListener(OnNextPressed);
+
+            if (optionButtons != null)
             {
-                Destroy(gameObject);
-                return;
+                for (int i = 0; i < optionButtons.Length; i++)
+                {
+                    if (optionButtons[i] == null)
+                        continue;
+                    int index = i;
+                    optionButtons[i].onClick.AddListener(() => OnOptionSelected(index));
+                }
             }
 
-            UiHomeNavButton.AddTo(root);
-
-            _titleText = UiRuntimeFactory.CreateText(root, "Title", "Activity", 44f, TextAlignmentOptions.Top);
-            StretchTopBand(_titleText.rectTransform, 24f, 1000f, 70f);
-
-            _statusText = UiRuntimeFactory.CreateText(root, "Status", string.Empty, 28f, TextAlignmentOptions.Top);
-            StretchTopBand(_statusText.rectTransform, 100f, 1000f, 50f);
-
-            _promptText = UiRuntimeFactory.CreateText(root, "Prompt", string.Empty, 36f, TextAlignmentOptions.Top);
-            StretchTopBand(_promptText.rectTransform, 170f, 980f, 160f);
-
-            _optionsRoot = new GameObject("Options", typeof(RectTransform), typeof(VerticalLayoutGroup)).GetComponent<RectTransform>();
-            _optionsRoot.SetParent(root, false);
-            _optionsRoot.anchorMin = new Vector2(0.5f, 0.5f);
-            _optionsRoot.anchorMax = new Vector2(0.5f, 0.5f);
-            _optionsRoot.pivot = new Vector2(0.5f, 0.5f);
-            _optionsRoot.sizeDelta = new Vector2(900f, 420f);
-            _optionsRoot.anchoredPosition = new Vector2(0f, -40f);
-            var layout = _optionsRoot.GetComponent<VerticalLayoutGroup>();
-            layout.spacing = 14f;
-            layout.childControlHeight = true;
-            layout.childControlWidth = true;
-            layout.childForceExpandHeight = false;
-            layout.childForceExpandWidth = true;
-
-            _feedbackText = UiRuntimeFactory.CreateText(root, "Feedback", string.Empty, 30f, TextAlignmentOptions.Center);
-            StretchBottomBand(_feedbackText.rectTransform, 200f, 980f, 60f);
-
-            var nextBtn = UiRuntimeFactory.CreateButton(root, "Next question", new Vector2(320f, 72f), OnNextPressed);
-            StretchBottomBand(nextBtn.GetComponent<RectTransform>(), 100f, 320f, 72f);
-
-            BuildOptionButtons();
             StartSession();
         }
 
-        private static void StretchTopBand(RectTransform rt, float topOffset, float width, float height)
+        private void OnDestroy()
         {
-            rt.anchorMin = new Vector2(0.5f, 1f);
-            rt.anchorMax = new Vector2(0.5f, 1f);
-            rt.pivot = new Vector2(0.5f, 1f);
-            rt.sizeDelta = new Vector2(width, height);
-            rt.anchoredPosition = new Vector2(0f, -topOffset);
-        }
-
-        private static void StretchBottomBand(RectTransform rt, float bottomOffset, float width, float height)
-        {
-            rt.anchorMin = new Vector2(0.5f, 0f);
-            rt.anchorMax = new Vector2(0.5f, 0f);
-            rt.pivot = new Vector2(0.5f, 0f);
-            rt.sizeDelta = new Vector2(width, height);
-            rt.anchoredPosition = new Vector2(0f, bottomOffset);
-        }
-
-        private void BuildOptionButtons()
-        {
-            for (int i = 0; i < 4; i++)
-            {
-                int index = i;
-                var btn = UiRuntimeFactory.CreateButton(_optionsRoot, "Option", new Vector2(900f, 80f), () => OnOptionSelected(index));
-                var layoutElement = btn.gameObject.GetComponent<LayoutElement>();
-                if (layoutElement == null)
-                    layoutElement = btn.gameObject.AddComponent<LayoutElement>();
-                layoutElement.minHeight = 80f;
-                _optionButtons.Add(btn);
-            }
+            if (nextButton != null)
+                nextButton.onClick.RemoveListener(OnNextPressed);
         }
 
         private void StartSession()
@@ -107,7 +58,9 @@ namespace PracticeMath.UI
             var module = ctx != null ? ctx.ActiveModule : LearningModule.Geometry;
             GradeLevel grade = ctx != null ? ctx.SelectedGrade : GradeLevel.Grade3;
 
-            _titleText.text = TitleForModule(module);
+            if (titleText != null)
+                titleText.text = TitleForModule(module);
+
             _pool.Clear();
             foreach (var q in BuiltInQuestionBanks.ForModule(module))
             {
@@ -135,7 +88,8 @@ namespace PracticeMath.UI
 
             _questionIndex = 0;
             _sessionComplete = false;
-            _feedbackText.text = string.Empty;
+            if (feedbackText != null)
+                feedbackText.text = string.Empty;
             ShowCurrentQuestion();
         }
 
@@ -156,35 +110,50 @@ namespace PracticeMath.UI
             if (_questionIndex >= _sessionQueue.Count)
             {
                 _sessionComplete = true;
-                _promptText.text = "Session complete!";
-                _statusText.text = $"You finished {_sessionQueue.Count} questions.";
+                if (promptText != null)
+                    promptText.text = "Session complete!";
+                if (statusText != null)
+                    statusText.text = $"You finished {_sessionQueue.Count} questions.";
                 SetOptionsVisible(false);
                 return;
             }
 
             _current = _sessionQueue[_questionIndex];
-            _promptText.text = _current.Prompt;
-            _statusText.text = $"Question {_questionIndex + 1} of {_sessionQueue.Count}";
-            _feedbackText.text = string.Empty;
+            if (promptText != null)
+                promptText.text = _current.Prompt;
+            if (statusText != null)
+                statusText.text = $"Question {_questionIndex + 1} of {_sessionQueue.Count}";
+            if (feedbackText != null)
+                feedbackText.text = string.Empty;
             SetOptionsVisible(true);
 
-            for (int i = 0; i < _optionButtons.Count; i++)
+            if (optionButtons == null)
+                return;
+
+            for (int i = 0; i < optionButtons.Length; i++)
             {
+                if (optionButtons[i] == null)
+                    continue;
                 bool show = _current.Options != null && i < _current.Options.Length;
-                _optionButtons[i].gameObject.SetActive(show);
+                optionButtons[i].gameObject.SetActive(show);
                 if (!show)
                     continue;
-                var label = _optionButtons[i].GetComponentInChildren<TextMeshProUGUI>();
+                var label = optionButtons[i].GetComponentInChildren<TextMeshProUGUI>();
                 if (label != null)
                     label.text = _current.Options[i];
-                _optionButtons[i].interactable = true;
+                optionButtons[i].interactable = true;
             }
         }
 
         private void SetOptionsVisible(bool visible)
         {
-            foreach (var btn in _optionButtons)
-                btn.gameObject.SetActive(visible);
+            if (optionButtons == null)
+                return;
+            foreach (var btn in optionButtons)
+            {
+                if (btn != null)
+                    btn.gameObject.SetActive(visible);
+            }
         }
 
         private void OnOptionSelected(int index)
@@ -196,12 +165,20 @@ namespace PracticeMath.UI
                 return;
 
             bool correct = index == _current.CorrectIndex;
-            _feedbackText.text = correct
-                ? "Correct!"
-                : $"Not quite. Answer: {_current.Options[_current.CorrectIndex]}";
+            if (feedbackText != null)
+            {
+                feedbackText.text = correct
+                    ? "Correct!"
+                    : $"Not quite. Answer: {_current.Options[_current.CorrectIndex]}";
+            }
 
-            foreach (var btn in _optionButtons)
-                btn.interactable = false;
+            if (optionButtons == null)
+                return;
+            foreach (var btn in optionButtons)
+            {
+                if (btn != null)
+                    btn.interactable = false;
+            }
         }
 
         private void OnNextPressed()

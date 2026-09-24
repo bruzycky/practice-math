@@ -11,6 +11,17 @@ This repository **is** a full Unity project at the root (`Assets/`, `Packages/`,
 - **`Assets/Scenes/PracticeMath.unity`** — mixed + − × ÷ practice and 10-question quiz.
 - **`Assets/Scenes/TimesTables.unity`**, **`MultipleChoice.unity`** — times tables (0–12) and multiple-choice strands (geometry, patterns, money, data).
 
+### Editable UI (prefabs + scenes)
+
+Hub and activity screens use **Canvas prefabs** you can lay out in the Inspector (not built only at runtime).
+
+1. In Unity: **Practice Math → UI → 3. Regenerate Prefabs And Apply To Scenes** (once after clone, or when resetting layout).
+2. Edit **`Assets/Prefabs/UI/`** (`HomeHubPanel`, `TimesTablesPanel`, `MultipleChoicePanel`) — colors, fonts, anchors, spacing.
+3. Or open **`Home`**, **`TimesTables`**, or **`MultipleChoice`** scenes and edit the prefab instance on the Canvas.
+4. **`PracticeMath`** scene: edit the existing Canvas directly; wire **`HomeHubController`** / tile **`HomeNavTileView`** components on the hub prefab.
+
+Controllers only handle logic; all visuals live on the prefab/scene objects.
+
 ## Open the project
 
 1. Install **Unity Hub** and the **same major editor version** as `ProjectVersion.txt` (or let the Hub upgrade the project when prompted).

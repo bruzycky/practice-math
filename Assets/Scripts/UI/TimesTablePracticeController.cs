@@ -1,22 +1,21 @@
 using System.Collections.Generic;
 using System.Text;
-using PracticeMath.Navigation;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace PracticeMath.UI
 {
-    /// <summary>Full 0–12 times table drill with optional single-table focus.</summary>
+    /// <summary>Full 0–12 times table drill. Wire UI references on the TimesTables scene Canvas.</summary>
     public sealed class TimesTablePracticeController : MonoBehaviour
     {
         private const int MinFactor = 0;
         private const int MaxFactor = 12;
 
-        private TMP_Dropdown _tableDropdown;
-        private TextMeshProUGUI _promptText;
-        private TextMeshProUGUI _answerText;
-        private TextMeshProUGUI _feedbackText;
+        [SerializeField] private TMP_Dropdown tableDropdown;
+        [SerializeField] private TextMeshProUGUI promptText;
+        [SerializeField] private TextMeshProUGUI answerText;
+        [SerializeField] private TextMeshProUGUI feedbackText;
+
         private readonly StringBuilder _digits = new StringBuilder();
         private readonly HashSet<string> _askedKeys = new HashSet<string>();
 
@@ -24,96 +23,40 @@ namespace PracticeMath.UI
         private int _right;
         private int _correctAnswer;
 
-        private void Awake()
+        private void Start()
         {
-            if (!UiRuntimeFactory.TryClaimBootstrapCanvas("TimesTablesCanvas", out RectTransform root))
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            UiHomeNavButton.AddTo(root);
-
-            var title = UiRuntimeFactory.CreateText(root, "Title", "Times Tables (0–12)", 48f, TextAlignmentOptions.Top);
-            StretchTopBand(title.rectTransform, 0f, 80f, 70f);
-
-            _tableDropdown = CreateTableDropdown(root);
-            _tableDropdown.onValueChanged.AddListener(_ => { _askedKeys.Clear(); NextProblem(); });
-
-            _promptText = UiRuntimeFactory.CreateText(root, "Prompt", "?", 64f, TextAlignmentOptions.Center);
-            StretchTopBand(_promptText.rectTransform, 320f, 980f, 120f);
-
-            _answerText = UiRuntimeFactory.CreateText(root, "Answer", string.Empty, 52f, TextAlignmentOptions.Center);
-            StretchTopBand(_answerText.rectTransform, 460f, 600f, 80f);
-
-            _feedbackText = UiRuntimeFactory.CreateText(root, "Feedback", string.Empty, 32f, TextAlignmentOptions.Center);
-            StretchTopBand(_feedbackText.rectTransform, 560f, 900f, 60f);
-
-            BuildKeypad(root);
+            PopulateTableDropdown();
+            if (tableDropdown != null)
+                tableDropdown.onValueChanged.AddListener(_ => { _askedKeys.Clear(); NextProblem(); });
             NextProblem();
         }
 
         private void OnDestroy()
         {
-            if (_tableDropdown != null)
-                _tableDropdown.onValueChanged.RemoveAllListeners();
+            if (tableDropdown != null)
+                tableDropdown.onValueChanged.RemoveAllListeners();
         }
 
-        private TMP_Dropdown CreateTableDropdown(RectTransform root)
+        private void PopulateTableDropdown()
         {
-            var dropdown = UiRuntimeFactory.CreateGradeDropdown(root, 0);
-            dropdown.options.Clear();
-            dropdown.options.Add(new TMP_Dropdown.OptionData("Mixed (all tables)"));
+            if (tableDropdown == null)
+                return;
+
+            tableDropdown.options.Clear();
+            tableDropdown.options.Add(new TMP_Dropdown.OptionData("Mixed (all tables)"));
             for (int i = MinFactor; i <= MaxFactor; i++)
-                dropdown.options.Add(new TMP_Dropdown.OptionData($"Table ×{i}"));
-            dropdown.value = 0;
-            dropdown.RefreshShownValue();
-            var rt = dropdown.GetComponent<RectTransform>();
-            StretchTopBand(rt, 160f, 420f, 70f);
-            return dropdown;
-        }
-
-        private static void StretchTopBand(RectTransform rt, float topOffset, float width, float height)
-        {
-            rt.anchorMin = new Vector2(0.5f, 1f);
-            rt.anchorMax = new Vector2(0.5f, 1f);
-            rt.pivot = new Vector2(0.5f, 1f);
-            rt.sizeDelta = new Vector2(width, height);
-            rt.anchoredPosition = new Vector2(0f, -topOffset);
-        }
-
-        private void BuildKeypad(RectTransform root)
-        {
-            var panel = new GameObject("Keypad", typeof(RectTransform), typeof(GridLayoutGroup));
-            panel.transform.SetParent(root, false);
-            var panelRt = panel.GetComponent<RectTransform>();
-            panelRt.anchorMin = new Vector2(0.5f, 0f);
-            panelRt.anchorMax = new Vector2(0.5f, 0f);
-            panelRt.pivot = new Vector2(0.5f, 0f);
-            panelRt.sizeDelta = new Vector2(520f, 420f);
-            panelRt.anchoredPosition = new Vector2(0f, 120f);
-            var grid = panel.GetComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(150f, 90f);
-            grid.spacing = new Vector2(12f, 12f);
-            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 3;
-
-            for (int d = 1; d <= 9; d++)
-            {
-                int digit = d;
-                UiRuntimeFactory.CreateButton(panelRt, digit.ToString(), new Vector2(150f, 90f), () => AppendDigit((char)('0' + digit)));
-            }
-
-            UiRuntimeFactory.CreateButton(panelRt, "Clear", new Vector2(150f, 90f), ClearInput);
-            UiRuntimeFactory.CreateButton(panelRt, "0", new Vector2(150f, 90f), () => AppendDigit('0'));
-            UiRuntimeFactory.CreateButton(panelRt, "⌫", new Vector2(150f, 90f), Backspace);
-            UiRuntimeFactory.CreateButton(panelRt, "Check", new Vector2(150f, 90f), Submit);
+                tableDropdown.options.Add(new TMP_Dropdown.OptionData($"Table ×{i}"));
+            tableDropdown.value = 0;
+            tableDropdown.RefreshShownValue();
         }
 
         private void NextProblem()
         {
-            int tableFocus = _tableDropdown != null && _tableDropdown.value > 0
-                ? _tableDropdown.value - 1
+            if (promptText == null)
+                return;
+
+            int tableFocus = tableDropdown != null && tableDropdown.value > 0
+                ? tableDropdown.value - 1
                 : -1;
 
             for (int attempt = 0; attempt < 512; attempt++)
@@ -134,14 +77,69 @@ namespace PracticeMath.UI
                     continue;
 
                 _correctAnswer = _left * _right;
-                _promptText.text = $"{_left} × {_right} =";
+                promptText.text = $"{_left} × {_right} =";
                 ClearInput();
-                _feedbackText.text = string.Empty;
+                if (feedbackText != null)
+                    feedbackText.text = string.Empty;
                 return;
             }
 
             _askedKeys.Clear();
             NextProblem();
+        }
+
+        public void Digit0() => AppendDigit('0');
+        public void Digit1() => AppendDigit('1');
+        public void Digit2() => AppendDigit('2');
+        public void Digit3() => AppendDigit('3');
+        public void Digit4() => AppendDigit('4');
+        public void Digit5() => AppendDigit('5');
+        public void Digit6() => AppendDigit('6');
+        public void Digit7() => AppendDigit('7');
+        public void Digit8() => AppendDigit('8');
+        public void Digit9() => AppendDigit('9');
+
+        public void Backspace()
+        {
+            if (_digits.Length == 0)
+                return;
+            _digits.Length--;
+            RefreshAnswer();
+        }
+
+        public void ClearInput()
+        {
+            _digits.Clear();
+            RefreshAnswer();
+        }
+
+        public void Submit()
+        {
+            if (_digits.Length == 0)
+            {
+                if (feedbackText != null)
+                    feedbackText.text = "Enter a number";
+                return;
+            }
+
+            if (!int.TryParse(_digits.ToString(), out int value))
+            {
+                if (feedbackText != null)
+                    feedbackText.text = "Invalid";
+                return;
+            }
+
+            if (value == _correctAnswer)
+            {
+                if (feedbackText != null)
+                    feedbackText.text = "Correct!";
+                ClearInput();
+                NextProblem();
+            }
+            else if (feedbackText != null)
+            {
+                feedbackText.text = "Try again";
+            }
         }
 
         private void AppendDigit(char c)
@@ -150,52 +148,15 @@ namespace PracticeMath.UI
                 return;
             _digits.Append(c);
             RefreshAnswer();
-            _feedbackText.text = string.Empty;
-        }
-
-        private void Backspace()
-        {
-            if (_digits.Length == 0)
-                return;
-            _digits.Length--;
-            RefreshAnswer();
-        }
-
-        private void ClearInput()
-        {
-            _digits.Clear();
-            RefreshAnswer();
+            if (feedbackText != null)
+                feedbackText.text = string.Empty;
         }
 
         private void RefreshAnswer()
         {
-            _answerText.text = _digits.Length > 0 ? _digits.ToString() : string.Empty;
-        }
-
-        private void Submit()
-        {
-            if (_digits.Length == 0)
-            {
-                _feedbackText.text = "Enter a number";
+            if (answerText == null)
                 return;
-            }
-
-            if (!int.TryParse(_digits.ToString(), out int value))
-            {
-                _feedbackText.text = "Invalid";
-                return;
-            }
-
-            if (value == _correctAnswer)
-            {
-                _feedbackText.text = "Correct!";
-                ClearInput();
-                NextProblem();
-            }
-            else
-            {
-                _feedbackText.text = "Try again";
-            }
+            answerText.text = _digits.Length > 0 ? _digits.ToString() : string.Empty;
         }
     }
 }

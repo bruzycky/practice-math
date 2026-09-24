@@ -77,7 +77,8 @@ namespace PracticeMath.UI
 
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
-            btn.onClick.AddListener(onClick);
+            if (onClick != null)
+                btn.onClick.AddListener(onClick);
 
             var text = CreateText(rt, "Label", label, 32f, TextAlignmentOptions.Center);
             var textRt = text.rectTransform;
