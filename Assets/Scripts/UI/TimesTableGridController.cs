@@ -7,14 +7,27 @@ namespace PracticeMath.UI
     /// <summary>Interactive 1–12 multiplication chart with animated row/column highlights.</summary>
     public sealed class TimesTableGridController : MonoBehaviour
     {
+        private enum ChartAnimationPath
+        {
+            None = 0,
+            ColumnOnly = 1,
+            RowOnly = 2,
+            PairColumnFirst = 3,
+            PairRowFirst = 4,
+            ProductRadiate = 5
+        }
+
         private const int MinFactor = 1;
         private const int MaxFactor = 12;
+        private const float RetractFadeStepScale = 0.275f;
+        private const float RetractWavePauseScale = 0.85f;
 
         [SerializeField] private TextMeshProUGUI instructionText;
         [SerializeField] private TextMeshProUGUI feedbackText;
         [SerializeField] private TimesTableGridCellView[] cells;
         [SerializeField] private float stepSeconds = 0.1f;
         [SerializeField] private float pulsePeakScale = 1.18f;
+        [SerializeField] private float trimFadeSeconds = 0.2f;
 
         private readonly TimesTableGridCellView[,] _products = new TimesTableGridCellView[MaxFactor + 1, MaxFactor + 1];
         private readonly TimesTableGridCellView[] _rowHeaders = new TimesTableGridCellView[MaxFactor + 1];
@@ -22,7 +35,12 @@ namespace PracticeMath.UI
 
         private int _selectedRow = -1;
         private int _selectedColumn = -1;
+        private bool _columnStripShown;
+        private bool _rowStripShown;
+        private ChartAnimationPath _animationPath = ChartAnimationPath.None;
         private Coroutine _stripRoutine;
+        private bool _inputLocked;
+        private TimesTableGridCellView _pendingChoiceCell;
 
         private void Start()
         {
@@ -34,94 +52,407 @@ namespace PracticeMath.UI
 
         public void NotifyCellClicked(TimesTableGridCellView cell)
         {
-            if (cell == null)
+            if (cell == null || _inputLocked)
                 return;
+
+            StartCoroutine(ProcessCellClicked(cell));
+        }
+
+        private IEnumerator ProcessCellClicked(TimesTableGridCellView cell)
+        {
+            _inputLocked = true;
+            StopStripRoutine();
+
+            if (ShouldReverseBefore(cell))
+            {
+                SetPendingChoiceCell(cell);
+                yield return ReverseHighlightAnimation();
+            }
 
             switch (cell.Role)
             {
                 case TimesTableGridCellRole.RowHeader:
-                    SelectRow(cell.RowFactor);
+                    yield return ApplyRowSelection(cell.RowFactor);
                     break;
                 case TimesTableGridCellRole.ColumnHeader:
-                    SelectColumn(cell.ColumnFactor);
+                    yield return ApplyColumnSelection(cell.ColumnFactor);
                     break;
                 case TimesTableGridCellRole.Product:
-                    OnProductClicked(cell);
+                    yield return ApplyProductSelection(cell);
                     break;
             }
+
+            _inputLocked = false;
         }
 
-        private void SelectRow(int row)
+        private bool ShouldReverseBefore(TimesTableGridCellView cell)
+        {
+            if (_animationPath == ChartAnimationPath.None)
+                return false;
+
+            if (!HasBothSelected())
+            {
+                if (cell.Role == TimesTableGridCellRole.ColumnHeader &&
+                    _columnStripShown &&
+                    cell.ColumnFactor != _selectedColumn)
+                    return true;
+                if (cell.Role == TimesTableGridCellRole.RowHeader &&
+                    _rowStripShown &&
+                    cell.RowFactor != _selectedRow)
+                    return true;
+                return false;
+            }
+
+            if (cell.Role == TimesTableGridCellRole.Product)
+                return true;
+            if (cell.Role == TimesTableGridCellRole.RowHeader && cell.RowFactor != _selectedRow)
+                return true;
+            if (cell.Role == TimesTableGridCellRole.ColumnHeader && cell.ColumnFactor != _selectedColumn)
+                return true;
+            return false;
+        }
+
+        private IEnumerator ApplyRowSelection(int row)
         {
             if (row < MinFactor || row > MaxFactor)
-                return;
+                yield break;
 
+            if (HasBothSelected() && row == _selectedRow)
+                yield break;
+
+            bool completingPair = _selectedColumn >= MinFactor && _columnStripShown && !HasBothSelected();
             _selectedRow = row;
+            ClearPendingChoiceCell();
             UpdateHeaderHighlights();
             ClearFeedback();
-            RestartStripAnimation();
+            yield return RestartStripAnimation(completingPairFromColumn: completingPair);
             RefreshInstruction();
         }
 
-        private void SelectColumn(int column)
+        private IEnumerator ApplyColumnSelection(int column)
         {
             if (column < MinFactor || column > MaxFactor)
-                return;
+                yield break;
 
+            if (HasBothSelected() && column == _selectedColumn)
+                yield break;
+
+            bool completingPair = _selectedRow >= MinFactor && _rowStripShown && !HasBothSelected();
             _selectedColumn = column;
+            ClearPendingChoiceCell();
             UpdateHeaderHighlights();
             ClearFeedback();
-            RestartStripAnimation();
+            yield return RestartStripAnimation(completingPairFromRow: completingPair);
             RefreshInstruction();
         }
 
-        private void OnProductClicked(TimesTableGridCellView cell)
+        private IEnumerator ApplyProductSelection(TimesTableGridCellView cell)
         {
-            if (_selectedRow >= MinFactor && _selectedColumn >= MinFactor)
-            {
-                if (cell.RowFactor == _selectedRow && cell.ColumnFactor == _selectedColumn)
-                {
-                    ShowFeedback($"{_selectedRow} × {_selectedColumn} = {cell.Product}", false);
-                    return;
-                }
-
-                ShowFeedback("Follow the highlighted row and column to where they meet.", true);
-                cell.SetWrongFlash();
-                StartCoroutine(ClearWrongAfter(cell, 0.35f));
-                return;
-            }
+            ClearPendingChoiceCell();
+            ClearAllVisuals();
 
             _selectedRow = cell.RowFactor;
             _selectedColumn = cell.ColumnFactor;
+            _columnStripShown = true;
+            _rowStripShown = true;
             UpdateHeaderHighlights();
-            RestartStripAnimation();
+            ClearFeedback();
+            yield return RunStripRoutine(AnimateRadiateFromProduct(cell));
             ShowFeedback($"{cell.RowFactor} × {cell.ColumnFactor} = {cell.Product}", false);
             RefreshInstruction();
         }
 
-        private void RestartStripAnimation()
+        private bool HasBothSelected() =>
+            _selectedRow >= MinFactor && _selectedColumn >= MinFactor;
+
+        private void StopStripRoutine()
         {
             if (_stripRoutine != null)
+            {
                 StopCoroutine(_stripRoutine);
+                _stripRoutine = null;
+            }
+        }
+
+        private IEnumerator RunStripRoutine(IEnumerator routine)
+        {
+            StopStripRoutine();
+            yield return routine;
+        }
+
+        private void SetPendingChoiceCell(TimesTableGridCellView cell)
+        {
+            ClearPendingChoiceCell();
+            _pendingChoiceCell = cell;
+            cell?.SetPendingChoice(true);
+        }
+
+        private void ClearPendingChoiceCell()
+        {
+            if (_pendingChoiceCell == null)
+                return;
+
+            _pendingChoiceCell.SetPendingChoice(false);
+            _pendingChoiceCell = null;
+        }
+
+        private void ClearAllVisuals()
+        {
+            ClearProductStripHighlights(_pendingChoiceCell);
+            for (int i = MinFactor; i <= MaxFactor; i++)
+            {
+                if (_rowHeaders[i] != null && _rowHeaders[i] != _pendingChoiceCell)
+                    _rowHeaders[i].SetHeaderSelected(false);
+                if (_colHeaders[i] != null && _colHeaders[i] != _pendingChoiceCell)
+                    _colHeaders[i].SetHeaderSelected(false);
+            }
+        }
+
+        private IEnumerator RestartStripAnimation(bool completingPairFromColumn = false, bool completingPairFromRow = false)
+        {
+            if (HasBothSelected() && completingPairFromColumn)
+            {
+                _rowStripShown = true;
+                yield return RunStripRoutine(CompletePairAfterColumn());
+                yield break;
+            }
+
+            if (HasBothSelected() && completingPairFromRow)
+            {
+                _columnStripShown = true;
+                yield return RunStripRoutine(CompletePairAfterRow());
+                yield break;
+            }
+
+            if (HasBothSelected())
+            {
+                ClearProductStripHighlights();
+                _columnStripShown = true;
+                _rowStripShown = true;
+                yield return RunStripRoutine(AnimateFullPairFromScratch());
+                yield break;
+            }
 
             ClearProductStripHighlights();
+            _columnStripShown = false;
+            _rowStripShown = false;
+            _animationPath = ChartAnimationPath.None;
 
-            if (_selectedColumn >= MinFactor && _selectedRow >= MinFactor)
-                _stripRoutine = StartCoroutine(AnimateBothSelections());
-            else if (_selectedColumn >= MinFactor)
-                _stripRoutine = StartCoroutine(AnimateColumn(_selectedColumn, stopAtRow: -1));
+            if (_selectedColumn >= MinFactor)
+            {
+                _columnStripShown = true;
+                yield return RunStripRoutine(AnimateColumnStrip(_selectedColumn));
+            }
             else if (_selectedRow >= MinFactor)
-                _stripRoutine = StartCoroutine(AnimateRow(_selectedRow, stopAtColumn: -1));
+            {
+                _rowStripShown = true;
+                yield return RunStripRoutine(AnimateRowStrip(_selectedRow));
+            }
         }
 
-        private IEnumerator AnimateBothSelections()
+        private IEnumerator ReverseHighlightAnimation()
         {
-            yield return StartCoroutine(AnimateColumn(_selectedColumn, stopAtRow: -1));
-            yield return StartCoroutine(AnimateRow(_selectedRow, stopAtColumn: _selectedColumn, finaleAtIntersection: true));
-            ShowIntersectionAnswer();
+            int row = _selectedRow;
+            int col = _selectedColumn;
+            var path = _animationPath;
+            float fadeStep = RetractFadeStep;
+
+            if (row >= MinFactor && col >= MinFactor &&
+                path is ChartAnimationPath.ProductRadiate or ChartAnimationPath.PairColumnFirst or ChartAnimationPath.PairRowFirst)
+            {
+                var intersection = _products[row, col];
+                if (intersection != null && intersection != _pendingChoiceCell)
+                    yield return intersection.FadeToDefault(fadeStep);
+            }
+
+            switch (path)
+            {
+                case ChartAnimationPath.ProductRadiate:
+                    yield return ReverseProductRadiate(row, col, fadeStep);
+                    break;
+                case ChartAnimationPath.PairColumnFirst:
+                    yield return ReversePairColumnFirst(row, col, fadeStep);
+                    break;
+                case ChartAnimationPath.PairRowFirst:
+                    yield return ReversePairRowFirst(row, col, fadeStep);
+                    break;
+                case ChartAnimationPath.ColumnOnly:
+                    yield return ReverseColumnOnly(col, fadeStep);
+                    break;
+                case ChartAnimationPath.RowOnly:
+                    yield return ReverseRowOnly(row, fadeStep);
+                    break;
+            }
+
+            ClearAllVisuals();
+            _animationPath = ChartAnimationPath.None;
+            _selectedRow = -1;
+            _selectedColumn = -1;
+            _columnStripShown = false;
+            _rowStripShown = false;
+            ReassertPendingChoice();
         }
 
-        private IEnumerator AnimateColumn(int column, int stopAtRow)
+        private float RetractFadeStep => trimFadeSeconds * RetractFadeStepScale;
+
+        private void ReassertPendingChoice()
+        {
+            if (_pendingChoiceCell != null)
+                _pendingChoiceCell.SetPendingChoice(true);
+        }
+
+        private IEnumerator FadeRetractCell(TimesTableGridCellView cell, float fadeStep)
+        {
+            if (cell == null || cell == _pendingChoiceCell)
+                yield break;
+            yield return cell.FadeToDefault(fadeStep);
+        }
+
+        private IEnumerator ReversePairColumnFirst(int row, int col, float fadeStep)
+        {
+            yield return ReversePairArmsParallel(
+                fadeStep,
+                rowArmRow: row,
+                rowArmColFrom: col - 1,
+                rowArmColTo: MinFactor,
+                colArmCol: col,
+                colArmRowFrom: MaxFactor,
+                colArmRowTo: MinFactor);
+
+            TurnOffPairHeaders(row, col);
+        }
+
+        private IEnumerator ReversePairRowFirst(int row, int col, float fadeStep)
+        {
+            yield return ReversePairArmsParallel(
+                fadeStep,
+                rowArmRow: row,
+                rowArmColFrom: MaxFactor,
+                rowArmColTo: MinFactor,
+                colArmCol: col,
+                colArmRowFrom: row - 1,
+                colArmRowTo: MinFactor);
+
+            TurnOffPairHeaders(row, col);
+        }
+
+        private IEnumerator ReversePairArmsParallel(
+            float fadeStep,
+            int rowArmRow,
+            int rowArmColFrom,
+            int rowArmColTo,
+            int colArmCol,
+            int colArmRowFrom,
+            int colArmRowTo)
+        {
+            int rowArmCol = rowArmColFrom;
+            int colArmRow = colArmRowFrom;
+            float wavePause = fadeStep * RetractWavePauseScale;
+
+            while (rowArmCol >= rowArmColTo || colArmRow >= colArmRowTo)
+            {
+                TimesTableGridCellView alongRow = rowArmCol >= rowArmColTo ? _products[rowArmRow, rowArmCol] : null;
+                TimesTableGridCellView alongCol = colArmRow >= colArmRowTo ? _products[colArmRow, colArmCol] : null;
+
+                if (alongRow == null && alongCol == null)
+                    break;
+
+                StartRetractFade(alongRow, fadeStep);
+                StartRetractFade(alongCol, fadeStep);
+
+                if (rowArmCol >= rowArmColTo)
+                    rowArmCol--;
+                if (colArmRow >= colArmRowTo)
+                    colArmRow--;
+
+                yield return new WaitForSeconds(wavePause);
+            }
+        }
+
+        private void StartRetractFade(TimesTableGridCellView cell, float fadeStep)
+        {
+            if (cell == null || cell == _pendingChoiceCell)
+                return;
+            StartCoroutine(cell.FadeToDefault(fadeStep));
+        }
+
+        private void TurnOffPairHeaders(int row, int col)
+        {
+            if (_rowHeaders[row] != null && _rowHeaders[row] != _pendingChoiceCell)
+                _rowHeaders[row].SetHeaderSelected(false);
+            if (_colHeaders[col] != null && _colHeaders[col] != _pendingChoiceCell)
+                _colHeaders[col].SetHeaderSelected(false);
+        }
+
+        private IEnumerator ReverseProductRadiate(int row, int col, float fadeStep)
+        {
+            if (_rowHeaders[row] != null && _rowHeaders[row] != _pendingChoiceCell)
+                _rowHeaders[row].SetHeaderSelected(false);
+            if (_colHeaders[col] != null && _colHeaders[col] != _pendingChoiceCell)
+                _colHeaders[col].SetHeaderSelected(false);
+
+            float wavePause = fadeStep * RetractWavePauseScale;
+            for (int step = 0; step < MaxFactor; step++)
+            {
+                int fadeCol = col - 1 - step;
+                int fadeRow = row - 1 - step;
+                TimesTableGridCellView leftCell = fadeCol >= MinFactor ? _products[row, fadeCol] : null;
+                TimesTableGridCellView upCell = fadeRow >= MinFactor ? _products[fadeRow, col] : null;
+
+                if (leftCell == null && upCell == null)
+                    break;
+
+                StartRetractFade(leftCell, fadeStep);
+                StartRetractFade(upCell, fadeStep);
+
+                yield return new WaitForSeconds(wavePause);
+            }
+        }
+
+        private IEnumerator ReverseColumnOnly(int col, float fadeStep)
+        {
+            for (int r = MaxFactor; r >= MinFactor; r--)
+                yield return FadeRetractCell(_products[r, col], fadeStep);
+
+            if (_colHeaders[col] != null && _colHeaders[col] != _pendingChoiceCell)
+                _colHeaders[col].SetHeaderSelected(false);
+        }
+
+        private IEnumerator ReverseRowOnly(int row, float fadeStep)
+        {
+            for (int c = MaxFactor; c >= MinFactor; c--)
+                yield return FadeRetractCell(_products[row, c], fadeStep);
+
+            if (_rowHeaders[row] != null && _rowHeaders[row] != _pendingChoiceCell)
+                _rowHeaders[row].SetHeaderSelected(false);
+        }
+
+        private IEnumerator CompletePairAfterColumn()
+        {
+            yield return AnimateRowStrip(_selectedRow, stopAtColumn: _selectedColumn, finaleAtIntersection: true);
+            yield return FadeOutBeyondIntersection();
+            ShowIntersectionAnswer();
+            _animationPath = ChartAnimationPath.PairColumnFirst;
+        }
+
+        private IEnumerator CompletePairAfterRow()
+        {
+            yield return AnimateColumnStrip(_selectedColumn, stopAtRow: _selectedRow, finaleAtIntersection: true);
+            yield return FadeOutBeyondIntersection();
+            ShowIntersectionAnswer();
+            _animationPath = ChartAnimationPath.PairRowFirst;
+        }
+
+        private IEnumerator AnimateFullPairFromScratch()
+        {
+            yield return AnimateColumnStrip(_selectedColumn);
+            yield return AnimateRowStrip(_selectedRow, stopAtColumn: _selectedColumn, finaleAtIntersection: true);
+            yield return FadeOutBeyondIntersection();
+            ShowIntersectionAnswer();
+            _animationPath = ChartAnimationPath.PairColumnFirst;
+        }
+
+        private IEnumerator AnimateColumnStrip(int column, int stopAtRow = -1, bool finaleAtIntersection = false)
         {
             for (int row = MinFactor; row <= MaxFactor; row++)
             {
@@ -132,13 +463,17 @@ namespace PracticeMath.UI
                 if (cell == null)
                     continue;
 
-                bool isIntersection = _selectedRow == row && _selectedColumn == column;
+                bool isIntersection = finaleAtIntersection && row == _selectedRow && column == _selectedColumn;
                 cell.SetStripHighlight(isIntersection ? TimesTableGridStripHighlight.Intersection : TimesTableGridStripHighlight.Column);
-                yield return cell.PlayPulse(stepSeconds, pulsePeakScale, settleHighlighted: true);
+                float peak = isIntersection ? pulsePeakScale * 1.12f : pulsePeakScale;
+                yield return cell.PlayPulse(stepSeconds, peak);
             }
+
+            if (stopAtRow < 0 && !finaleAtIntersection)
+                _animationPath = ChartAnimationPath.ColumnOnly;
         }
 
-        private IEnumerator AnimateRow(int row, int stopAtColumn, bool finaleAtIntersection = false)
+        private IEnumerator AnimateRowStrip(int row, int stopAtColumn = -1, bool finaleAtIntersection = false)
         {
             for (int col = MinFactor; col <= MaxFactor; col++)
             {
@@ -152,17 +487,98 @@ namespace PracticeMath.UI
                 bool isIntersection = finaleAtIntersection && col == stopAtColumn && row == _selectedRow;
                 if (isIntersection)
                     cell.SetStripHighlight(TimesTableGridStripHighlight.Intersection);
-                else if (cell != null)
+                else
                     cell.SetStripHighlight(TimesTableGridStripHighlight.Row);
 
                 float peak = isIntersection ? pulsePeakScale * 1.12f : pulsePeakScale;
-                yield return cell.PlayPulse(stepSeconds, peak, settleHighlighted: true);
+                yield return cell.PlayPulse(stepSeconds, peak);
             }
+
+            if (stopAtColumn < 0 && !finaleAtIntersection)
+                _animationPath = ChartAnimationPath.RowOnly;
+        }
+
+        private IEnumerator AnimateRadiateFromProduct(TimesTableGridCellView origin)
+        {
+            int row = origin.RowFactor;
+            int col = origin.ColumnFactor;
+
+            origin.SetStripHighlight(TimesTableGridStripHighlight.Intersection);
+            yield return origin.PlayPulse(stepSeconds, pulsePeakScale * 1.12f);
+
+            int leftCol = col - 1;
+            int upRow = row - 1;
+            while (leftCol >= MinFactor || upRow >= MinFactor)
+            {
+                TimesTableGridCellView leftCell = leftCol >= MinFactor ? _products[row, leftCol] : null;
+                TimesTableGridCellView upCell = upRow >= MinFactor ? _products[upRow, col] : null;
+
+                if (leftCell != null)
+                {
+                    leftCell.SetStripHighlight(TimesTableGridStripHighlight.Row);
+                    leftCol--;
+                }
+
+                if (upCell != null)
+                {
+                    upCell.SetStripHighlight(TimesTableGridStripHighlight.Column);
+                    upRow--;
+                }
+
+                yield return PlayPulseParallel(leftCell, upCell, pulsePeakScale);
+            }
+
+            var rowHeader = _rowHeaders[row];
+            var colHeader = _colHeaders[col];
+            if (rowHeader != null)
+                rowHeader.SetHeaderSelected(true);
+            if (colHeader != null)
+                colHeader.SetHeaderSelected(true);
+            yield return PlayPulseParallel(rowHeader, colHeader, pulsePeakScale);
+
+            yield return FadeOutBeyondIntersection();
+            _animationPath = ChartAnimationPath.ProductRadiate;
+        }
+
+        private IEnumerator PlayPulseParallel(TimesTableGridCellView a, TimesTableGridCellView b, float peak)
+        {
+            if (a == null && b == null)
+                yield break;
+
+            if (a != null)
+                StartCoroutine(a.PlayPulse(stepSeconds, peak));
+            if (b != null && b != a)
+                StartCoroutine(b.PlayPulse(stepSeconds, peak));
+
+            yield return new WaitForSeconds(stepSeconds);
+        }
+
+        private IEnumerator FadeOutBeyondIntersection()
+        {
+            if (!HasBothSelected())
+                yield break;
+
+            for (int r = _selectedRow + 1; r <= MaxFactor; r++)
+            {
+                var cell = _products[r, _selectedColumn];
+                if (cell != null)
+                    StartCoroutine(cell.FadeToDefault(trimFadeSeconds));
+            }
+
+            for (int c = _selectedColumn + 1; c <= MaxFactor; c++)
+            {
+                var cell = _products[_selectedRow, c];
+                if (cell != null)
+                    StartCoroutine(cell.FadeToDefault(trimFadeSeconds));
+            }
+
+            if (trimFadeSeconds > 0f)
+                yield return new WaitForSeconds(trimFadeSeconds);
         }
 
         private void ShowIntersectionAnswer()
         {
-            if (_selectedRow < MinFactor || _selectedColumn < MinFactor)
+            if (!HasBothSelected())
                 return;
 
             int product = _selectedRow * _selectedColumn;
@@ -179,7 +595,7 @@ namespace PracticeMath.UI
             if (instructionText == null)
                 return;
 
-            if (_selectedRow >= MinFactor && _selectedColumn >= MinFactor)
+            if (HasBothSelected())
             {
                 instructionText.text = $"Watch the highlights meet at {_selectedRow} × {_selectedColumn}.";
                 return;
@@ -197,7 +613,7 @@ namespace PracticeMath.UI
                 return;
             }
 
-            instructionText.text = "Tap a number on the top, then on the left, to see where they meet.";
+            instructionText.text = "Tap a number on the top, then on the left, or tap an answer in the grid.";
         }
 
         private void UpdateHeaderHighlights()
@@ -211,14 +627,15 @@ namespace PracticeMath.UI
             }
         }
 
-        private void ClearProductStripHighlights()
+        private void ClearProductStripHighlights(TimesTableGridCellView skipCell = null)
         {
             for (int r = MinFactor; r <= MaxFactor; r++)
             {
                 for (int c = MinFactor; c <= MaxFactor; c++)
                 {
-                    if (_products[r, c] != null)
-                        _products[r, c].ResetVisuals();
+                    var cell = _products[r, c];
+                    if (cell != null && cell != skipCell)
+                        cell.ResetVisuals();
                 }
             }
         }
@@ -237,9 +654,7 @@ namespace PracticeMath.UI
                 return;
 
             foreach (var cell in cells)
-            {
                 cell?.EnsureClickWired();
-            }
 
             foreach (var cell in cells)
             {
@@ -278,17 +693,5 @@ namespace PracticeMath.UI
             if (feedbackText != null)
                 feedbackText.text = string.Empty;
         }
-
-        private IEnumerator ClearWrongAfter(TimesTableGridCellView cell, float seconds)
-        {
-            yield return new WaitForSeconds(seconds);
-            if (cell == null)
-                yield break;
-            if (_selectedRow >= MinFactor && _selectedColumn >= MinFactor)
-                RestartStripAnimation();
-            else
-                cell.ResetVisuals();
-        }
-
     }
 }
