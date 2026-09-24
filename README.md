@@ -7,7 +7,9 @@ A kid-friendly math practice game built in **Unity**, targeting **Android** phon
 This repository **is** a full Unity project at the root (`Assets/`, `Packages/`, `ProjectSettings/`). Editor version is recorded in `ProjectSettings/ProjectVersion.txt` (Unity **6** / **6000.x** line with **URP 2D** template).
 
 - **`Assets/PracticeMath/Scripts/Core/`** — pure C# math types and a random problem generator (addition, subtraction, multiplication, whole-number division). No dedicated game UI yet; this is the foundation for screens, scoring, and audio.
-- **`Assets/Scenes/SampleScene.unity`** — default scene in **File → Build Settings**.
+- **`Assets/Scenes/Home.unity`** — landing hub (grade picker + activity tiles). First scene in **File → Build Settings**.
+- **`Assets/Scenes/PracticeMath.unity`** — mixed + − × ÷ practice and 10-question quiz.
+- **`Assets/Scenes/TimesTables.unity`**, **`MultipleChoice.unity`** — times tables (0–12) and multiple-choice strands (geometry, patterns, money, data).
 
 ## Open the project
 

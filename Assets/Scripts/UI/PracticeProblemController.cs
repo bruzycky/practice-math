@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using PracticeMath.Analytics;
 using PracticeMath.Core;
+using PracticeMath.Navigation;
 using TMPro;
 using UnityEngine;
 
@@ -29,6 +30,8 @@ namespace PracticeMath.UI
         [Tooltip("Optional text for quiz progress and final score.")]
         [SerializeField] private TextMeshProUGUI quizStatusText;
         [SerializeField] private GradeLevel initialGrade = GradeLevel.Grade1;
+        [Tooltip("When hub session exists, grade comes from AppSessionContext and the dropdown is hidden.")]
+        [SerializeField] private bool preferHubGrade = true;
         [Tooltip("Optional session stats; notified when each new question is shown.")]
         [SerializeField] private PracticeSessionAnalytics sessionAnalytics;
         [Header("A/B experiment")]
@@ -65,6 +68,7 @@ namespace PracticeMath.UI
         {
             _generator = new MathProblemGenerator();
             _gradeLevel = initialGrade;
+            TryApplyHubGrade();
         }
 
         private void Start()
@@ -77,11 +81,46 @@ namespace PracticeMath.UI
                 if (idx >= 0 && idx < gradeDropdown.options.Count)
                     gradeDropdown.SetValueWithoutNotify(idx);
                 gradeDropdown.onValueChanged.AddListener(OnGradeDropdownChanged);
+                if (IsUsingHubGrade())
+                    gradeDropdown.gameObject.SetActive(false);
             }
 
             sessionAnalytics?.NotifyActiveGrade(_gradeLevel);
             UpdateQuizStatusText(string.Empty);
-            ShowNewProblem();
+
+            if (ShouldStartQuizFromHub())
+                StartQuiz();
+            else
+                ShowNewProblem();
+        }
+
+        /// <summary>Called by <see cref="PracticeSceneOverlay"/> when the practice scene loads.</summary>
+        public void ApplyHubSessionSettings()
+        {
+            TryApplyHubGrade();
+            if (gradeDropdown != null && IsUsingHubGrade())
+            {
+                gradeDropdown.SetValueWithoutNotify((int)_gradeLevel - 1);
+                gradeDropdown.gameObject.SetActive(false);
+            }
+        }
+
+        private void TryApplyHubGrade()
+        {
+            if (!preferHubGrade || AppSessionContext.Instance == null)
+                return;
+            _gradeLevel = AppSessionContext.Instance.SelectedGrade;
+        }
+
+        private bool IsUsingHubGrade()
+        {
+            return preferHubGrade && AppSessionContext.Instance != null;
+        }
+
+        private bool ShouldStartQuizFromHub()
+        {
+            var ctx = AppSessionContext.Instance;
+            return ctx != null && ctx.ActiveModule == LearningModule.Quiz;
         }
 
         private void OnDestroy()
