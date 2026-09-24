@@ -18,40 +18,15 @@ namespace PracticeMath.UI
                 return;
             }
 
-            var header = UiRuntimeFactory.CreateText(root, "Title", "Practice Math", 56f, TextAlignmentOptions.Top);
-            var headerRt = header.rectTransform;
-            headerRt.anchorMin = new Vector2(0f, 1f);
-            headerRt.anchorMax = new Vector2(1f, 1f);
-            headerRt.pivot = new Vector2(0.5f, 1f);
-            headerRt.sizeDelta = new Vector2(0f, 90f);
-            headerRt.anchoredPosition = new Vector2(0f, -24f);
-
-            var subtitle = UiRuntimeFactory.CreateText(root, "Subtitle", "Choose what to practice", 32f, TextAlignmentOptions.Top);
-            var subRt = subtitle.rectTransform;
-            subRt.anchorMin = new Vector2(0f, 1f);
-            subRt.anchorMax = new Vector2(1f, 1f);
-            subRt.pivot = new Vector2(0.5f, 1f);
-            subRt.sizeDelta = new Vector2(0f, 50f);
-            subRt.anchoredPosition = new Vector2(0f, -120f);
-
-            var ctx = AppSessionContext.Instance;
-            int gradeIndex = ctx != null ? (int)ctx.SelectedGrade - 1 : 2;
-            _gradeDropdown = UiRuntimeFactory.CreateGradeDropdown(root, gradeIndex);
-            var dropRt = _gradeDropdown.GetComponent<RectTransform>();
-            dropRt.anchorMin = new Vector2(0.5f, 1f);
-            dropRt.anchorMax = new Vector2(0.5f, 1f);
-            dropRt.pivot = new Vector2(0.5f, 1f);
-            dropRt.anchoredPosition = new Vector2(0f, -200f);
-            _gradeDropdown.onValueChanged.AddListener(OnGradeChanged);
-            OnGradeChanged(_gradeDropdown.value);
+            const float headerHeight = 300f;
 
             var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
             scrollGo.transform.SetParent(root, false);
             var scrollRt = scrollGo.GetComponent<RectTransform>();
-            scrollRt.anchorMin = new Vector2(0.05f, 0.05f);
-            scrollRt.anchorMax = new Vector2(0.95f, 0.78f);
+            scrollRt.anchorMin = new Vector2(0.05f, 0.04f);
+            scrollRt.anchorMax = new Vector2(0.95f, 1f);
             scrollRt.offsetMin = Vector2.zero;
-            scrollRt.offsetMax = Vector2.zero;
+            scrollRt.offsetMax = new Vector2(0f, -headerHeight);
             scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.15f);
 
             var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
@@ -97,6 +72,44 @@ namespace PracticeMath.UI
             AddTile(contentRt, "Patterns", "What comes next?", () => GameSceneLoader.Launch(LearningModule.Patterns));
             AddTile(contentRt, "Money (Canada)", "Coins, bills, and change", () => GameSceneLoader.Launch(LearningModule.Money));
             AddTile(contentRt, "Charts & Data", "Graphs, tallies, and likelihood", () => GameSceneLoader.Launch(LearningModule.Data));
+
+            var headerRoot = new GameObject("Header", typeof(RectTransform));
+            headerRoot.transform.SetParent(root, false);
+            var headerRootRt = headerRoot.GetComponent<RectTransform>();
+            headerRootRt.anchorMin = new Vector2(0f, 1f);
+            headerRootRt.anchorMax = new Vector2(1f, 1f);
+            headerRootRt.pivot = new Vector2(0.5f, 1f);
+            headerRootRt.sizeDelta = new Vector2(0f, headerHeight);
+            headerRootRt.anchoredPosition = Vector2.zero;
+
+            var header = UiRuntimeFactory.CreateText(headerRootRt, "Title", "Practice Math", 56f, TextAlignmentOptions.Top);
+            var headerRt = header.rectTransform;
+            headerRt.anchorMin = new Vector2(0f, 1f);
+            headerRt.anchorMax = new Vector2(1f, 1f);
+            headerRt.pivot = new Vector2(0.5f, 1f);
+            headerRt.sizeDelta = new Vector2(0f, 72f);
+            headerRt.anchoredPosition = new Vector2(0f, -16f);
+
+            var subtitle = UiRuntimeFactory.CreateText(headerRootRt, "Subtitle", "Choose what to practice", 28f, TextAlignmentOptions.Top);
+            var subRt = subtitle.rectTransform;
+            subRt.anchorMin = new Vector2(0f, 1f);
+            subRt.anchorMax = new Vector2(1f, 1f);
+            subRt.pivot = new Vector2(0.5f, 1f);
+            subRt.sizeDelta = new Vector2(0f, 44f);
+            subRt.anchoredPosition = new Vector2(0f, -88f);
+
+            var ctx = AppSessionContext.Instance;
+            int gradeIndex = ctx != null ? (int)ctx.SelectedGrade - 1 : 2;
+            _gradeDropdown = UiRuntimeFactory.CreateGradeDropdown(headerRootRt, gradeIndex);
+            var dropRt = _gradeDropdown.GetComponent<RectTransform>();
+            dropRt.anchorMin = new Vector2(0.5f, 1f);
+            dropRt.anchorMax = new Vector2(0.5f, 1f);
+            dropRt.pivot = new Vector2(0.5f, 1f);
+            dropRt.anchoredPosition = new Vector2(0f, -150f);
+            _gradeDropdown.onValueChanged.AddListener(OnGradeChanged);
+            OnGradeChanged(_gradeDropdown.value);
+
+            headerRoot.transform.SetAsLastSibling();
         }
 
         private void OnDestroy()
@@ -118,7 +131,7 @@ namespace PracticeMath.UI
             var tile = new GameObject("Tile", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
             tile.transform.SetParent(parent, false);
             tile.GetComponent<Image>().color = new Color(0.18f, 0.35f, 0.58f, 1f);
-            tile.GetComponent<LayoutElement>().minHeight = 120f;
+            tile.GetComponent<LayoutElement>().minHeight = 100f;
 
             var btn = tile.GetComponent<Button>();
             btn.onClick.AddListener(onClick);
