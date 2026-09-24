@@ -50,6 +50,7 @@ namespace PracticeMath.Navigation
             SelectedSchemeIndex = index;
             PlayerPrefs.SetInt(PrefScheme, SelectedSchemeIndex);
             PlayerPrefs.Save();
+            UiEventSystemUtility.ClearCurrentSelection();
             Changed?.Invoke();
         }
     }

@@ -1,4 +1,5 @@
 using PracticeMath.Core;
+using PracticeMath.UI;
 using UnityEngine.SceneManagement;
 
 namespace PracticeMath.Navigation
@@ -7,6 +8,7 @@ namespace PracticeMath.Navigation
     {
         public static void LoadHome()
         {
+            UiEventSystemUtility.ClearCurrentSelection();
             SceneManager.LoadScene(GameScenes.Home);
             SceneUiBootstrap.BootstrapActiveScene();
         }
@@ -18,6 +20,7 @@ namespace PracticeMath.Navigation
                 return;
 
             ctx.ActiveModule = module;
+            UiEventSystemUtility.ClearCurrentSelection();
 
             switch (module)
             {

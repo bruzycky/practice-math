@@ -1,6 +1,7 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace PracticeMath.UI
@@ -22,7 +23,8 @@ namespace PracticeMath.UI
     }
 
     /// <summary>One cell in the 1–12 multiplication chart. Wire on the grid prefab or let the layout builder create instances.</summary>
-    public sealed class TimesTableGridCellView : MonoBehaviour
+    [DefaultExecutionOrder(-100)]
+    public sealed class TimesTableGridCellView : MonoBehaviour, IPointerClickHandler
     {
         [SerializeField] private TimesTableGridCellRole role;
         [SerializeField] private int rowFactor;
@@ -61,7 +63,8 @@ namespace PracticeMath.UI
         private void Awake()
         {
             Reset();
-            WireClick();
+            RemoveLegacyButton();
+            ConfigureClickTarget();
         }
 
         private void Reset()
@@ -74,6 +77,43 @@ namespace PracticeMath.UI
                 background = GetComponent<Image>();
             if (_rectTransform == null)
                 _rectTransform = transform as RectTransform;
+        }
+
+        private void RemoveLegacyButton()
+        {
+            if (!Application.isPlaying)
+                return;
+
+            var legacyButton = GetComponent<Button>();
+            if (legacyButton == null)
+                return;
+
+            Destroy(legacyButton);
+            button = null;
+        }
+
+        private void ConfigureClickTarget()
+        {
+            if (background == null)
+                background = GetComponent<Image>();
+
+            bool clickable = role != TimesTableGridCellRole.Corner;
+            if (background != null)
+                background.raycastTarget = clickable;
+
+            var owner = _owner != null ? _owner : GetComponentInParent<TimesTableGridController>();
+            if (owner != null)
+                _owner = owner;
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (role == TimesTableGridCellRole.Corner)
+                return;
+
+            if (_owner == null)
+                _owner = GetComponentInParent<TimesTableGridController>();
+            _owner?.NotifyCellClicked(this);
         }
 
         public void Configure(
@@ -94,34 +134,12 @@ namespace PracticeMath.UI
 
             ApplyBaseColor();
             RestoreProductLabelStyle();
-            WireClick();
+            ConfigureClickTarget();
         }
 
         public void EnsureClickWired()
         {
-            WireClick();
-        }
-
-        private void WireClick()
-        {
-            if (button == null)
-                return;
-
-            button.onClick.RemoveAllListeners();
-            if (role == TimesTableGridCellRole.Corner)
-            {
-                button.interactable = false;
-                return;
-            }
-
-            button.interactable = true;
-
-            var owner = _owner != null ? _owner : GetComponentInParent<TimesTableGridController>();
-            if (owner == null)
-                return;
-
-            _owner = owner;
-            button.onClick.AddListener(() => owner.NotifyCellClicked(this));
+            ConfigureClickTarget();
         }
 
         private void ApplyBaseColor()

@@ -51,6 +51,7 @@ namespace PracticeMath.UI
 
         public void OpenSettings()
         {
+            UiEventSystemUtility.ClearCurrentSelection();
             hub?.SetHubVisible(false);
             if (adminPanelRoot != null)
                 adminPanelRoot.SetActive(false);
@@ -60,6 +61,7 @@ namespace PracticeMath.UI
 
         public void CloseSettingsToHub()
         {
+            UiEventSystemUtility.ClearCurrentSelection();
             if (settingsPanelRoot != null)
                 settingsPanelRoot.SetActive(false);
             if (adminPanelRoot != null)
@@ -86,6 +88,9 @@ namespace PracticeMath.UI
 
         private void OnColorSchemeChanged(int index)
         {
+            if (colorSchemeDropdown != null)
+                colorSchemeDropdown.Hide();
+            UiEventSystemUtility.ClearCurrentSelection();
             AppThemeContext.Instance?.SetSelectedScheme(index);
         }
     }

@@ -59,6 +59,9 @@ namespace PracticeMath.UI
 
         public void SetHubVisible(bool visible)
         {
+            if (!visible)
+                UiEventSystemUtility.ClearCurrentSelection();
+
             if (headerRoot != null)
                 headerRoot.SetActive(visible);
             if (scrollRoot != null)

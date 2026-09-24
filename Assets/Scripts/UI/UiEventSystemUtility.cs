@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
@@ -7,32 +8,93 @@ using UnityEngine.InputSystem.UI;
 
 namespace PracticeMath.UI
 {
-    /// <summary>Ensures a single EventSystem compatible with Project Settings → Input System package.</summary>
+    /// <summary>Single persisted EventSystem; scene-local copies are removed at runtime.</summary>
     public static class UiEventSystemUtility
     {
+        private const string PersistedObjectName = "[Persisted] EventSystem";
         private const string InputActionsResourceName = "InputSystem_Actions";
+
+        private static EventSystem s_Persisted;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_Persisted = null;
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void BootstrapAfterFirstScene()
+        {
+            SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+            SceneManager.activeSceneChanged += OnActiveSceneChanged;
+            EnsureConfigured();
+        }
+
+        private static void OnActiveSceneChanged(Scene previous, Scene next)
+        {
+            ClearCurrentSelection();
+        }
+
+        /// <summary>Clears UI selection so Selectables can disable safely during scene changes.</summary>
+        public static void ClearCurrentSelection()
+        {
+            if (s_Persisted != null)
+                s_Persisted.SetSelectedGameObject(null);
+
+            var es = EventSystem.current;
+            if (es != null && es != s_Persisted)
+                es.SetSelectedGameObject(null);
+        }
+
+        public static void ClearSelectionIfUnder(Transform root)
+        {
+            if (root == null)
+                return;
+
+            var es = EventSystem.current ?? s_Persisted;
+            if (es == null || es.currentSelectedGameObject == null)
+                return;
+
+            if (es.currentSelectedGameObject.transform.IsChildOf(root))
+                es.SetSelectedGameObject(null);
+        }
 
         public static void EnsureConfigured()
         {
-            var systems = Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            EventSystem primary = null;
+            var primary = EnsurePersistedEventSystem();
 
+            var systems = Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             for (int i = 0; i < systems.Length; i++)
             {
-                if (primary == null)
-                    primary = systems[i];
-                else
-                    Object.Destroy(systems[i].gameObject);
-            }
+                var sys = systems[i];
+                if (sys == null || sys == primary)
+                    continue;
 
-            if (primary == null)
-            {
-                var go = new GameObject("EventSystem");
-                primary = go.AddComponent<EventSystem>();
+                sys.SetSelectedGameObject(null);
+                Object.Destroy(sys.gameObject);
             }
 
             RemoveLegacyInputModules(primary.gameObject);
             ConfigureNewInputModule(primary.gameObject);
+        }
+
+        private static EventSystem EnsurePersistedEventSystem()
+        {
+            if (s_Persisted != null)
+                return s_Persisted;
+
+            var existing = GameObject.Find(PersistedObjectName);
+            if (existing != null)
+            {
+                s_Persisted = existing.GetComponent<EventSystem>();
+                if (s_Persisted != null)
+                    return s_Persisted;
+            }
+
+            var go = new GameObject(PersistedObjectName);
+            s_Persisted = go.AddComponent<EventSystem>();
+            Object.DontDestroyOnLoad(go);
+            return s_Persisted;
         }
 
         private static void RemoveLegacyInputModules(GameObject eventSystemGo)

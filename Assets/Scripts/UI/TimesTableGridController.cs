@@ -53,6 +53,11 @@ namespace PracticeMath.UI
         {
             if (AppThemeContext.Instance != null)
                 AppThemeContext.Instance.Changed -= ApplyTheme;
+
+            StopStripRoutine();
+            StopAllCoroutines();
+            _inputLocked = false;
+            UiEventSystemUtility.ClearSelectionIfUnder(transform);
         }
 
         public void ApplyTheme()
@@ -622,8 +627,10 @@ namespace PracticeMath.UI
         private static string FormatMultiplicationFeedback(int rowFactor, int columnFactor)
         {
             int product = rowFactor * columnFactor;
-            return $"{rowFactor} × {columnFactor} = {product} " +
-                   $"({product} ÷ {columnFactor} = {rowFactor} or {product} ÷ {rowFactor} = {columnFactor})";
+            string division = rowFactor == columnFactor
+                ? $"{product} ÷ {columnFactor} = {rowFactor}"
+                : $"{product} ÷ {columnFactor} = {rowFactor} or {product} ÷ {rowFactor} = {columnFactor}";
+            return $"{rowFactor} × {columnFactor} = {product} ({division})";
         }
 
         private void RefreshInstruction()

@@ -372,7 +372,7 @@ namespace PracticeMath.Editor
             int columnFactor,
             string text)
         {
-            var go = new GameObject($"Cell_{rowFactor}_{columnFactor}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(TimesTableGridCellView));
+            var go = new GameObject($"Cell_{rowFactor}_{columnFactor}", typeof(RectTransform), typeof(Image), typeof(TimesTableGridCellView));
             go.transform.SetParent(gridRoot, false);
 
             var label = UiRuntimeFactory.CreateText(go.GetComponent<RectTransform>(), "Label", string.Empty, 20f, TextAlignmentOptions.Center);

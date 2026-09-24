@@ -22,6 +22,7 @@ namespace PracticeMath.Navigation
 
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            UiEventSystemUtility.ClearCurrentSelection();
             UiEventSystemUtility.EnsureConfigured();
             EnsureHomeNavButtons(scene);
             EnsureThemedCanvases(scene);
