@@ -24,6 +24,22 @@ namespace PracticeMath.Navigation
         {
             UiEventSystemUtility.EnsureConfigured();
             EnsureHomeNavButtons(scene);
+            EnsureThemedCanvases(scene);
+        }
+
+        private static void EnsureThemedCanvases(Scene scene)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                foreach (var canvas in root.GetComponentsInChildren<Canvas>(true))
+                {
+                    if (canvas.renderMode != RenderMode.ScreenSpaceOverlay &&
+                        canvas.renderMode != RenderMode.ScreenSpaceCamera)
+                        continue;
+
+                    UiThemeSceneApplicator.EnsureOn(canvas.gameObject);
+                }
+            }
         }
 
         private static void EnsureHomeNavButtons(Scene scene)

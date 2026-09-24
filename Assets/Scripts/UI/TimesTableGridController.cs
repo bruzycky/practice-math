@@ -1,4 +1,5 @@
 using System.Collections;
+using PracticeMath.Navigation;
 using TMPro;
 using UnityEngine;
 
@@ -42,10 +43,38 @@ namespace PracticeMath.UI
         private bool _inputLocked;
         private TimesTableGridCellView _pendingChoiceCell;
 
+        private void OnEnable()
+        {
+            if (AppThemeContext.Instance != null)
+                AppThemeContext.Instance.Changed += ApplyTheme;
+        }
+
+        private void OnDisable()
+        {
+            if (AppThemeContext.Instance != null)
+                AppThemeContext.Instance.Changed -= ApplyTheme;
+        }
+
+        public void ApplyTheme()
+        {
+            if (cells == null)
+                return;
+
+            foreach (var cell in cells)
+                cell?.ReapplyThemeFromProvider();
+
+            UpdateHeaderHighlights();
+            if (instructionText != null)
+                instructionText.color = AppThemeContext.Instance != null
+                    ? AppThemeContext.Instance.CurrentRoles.Text
+                    : UiColorSchemeCatalog.Get(0).ResolveRoles().Text;
+        }
+
         private void Start()
         {
             BuildLookup();
             RefreshInstruction();
+            ApplyTheme();
             if (feedbackText != null)
                 feedbackText.text = string.Empty;
         }
@@ -692,7 +721,12 @@ namespace PracticeMath.UI
             if (feedbackText == null)
                 return;
             feedbackText.text = message;
-            feedbackText.color = isTryAgain ? new Color(1f, 0.75f, 0.65f) : new Color(0.75f, 1f, 0.82f);
+            var roles = AppThemeContext.Instance != null
+                ? AppThemeContext.Instance.CurrentRoles
+                : UiColorSchemeCatalog.Get(0).ResolveRoles();
+            feedbackText.color = isTryAgain
+                ? Color.Lerp(roles.Button, roles.Text, 0.35f)
+                : roles.Text;
         }
 
         private void ClearFeedback()

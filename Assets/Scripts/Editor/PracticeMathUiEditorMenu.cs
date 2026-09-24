@@ -21,6 +21,7 @@ namespace PracticeMath.Editor
         public static void GeneratePrefabs()
         {
             EnsureFolder(PracticeMathUiLayoutBuilder.PrefabFolder);
+            PracticeMathUiAssetsEditor.EnsureUiAssetsSilent();
 
             SavePrefabIfMissing(HomeHubPanelUiFactory.BuildSettingsOverlay(), HomeHubPanelUiFactory.SettingsOverlayPrefabPath);
             SavePrefabIfMissing(PracticeMathUiLayoutBuilder.BuildHomePanel(), HomePrefabPath);
@@ -30,6 +31,7 @@ namespace PracticeMath.Editor
 
             EnsureHomeNavOnPrefabs();
             EnsureHomeSettingsOnHomePrefab();
+            EnsureThemedPanelPrefabs();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -207,6 +209,8 @@ namespace PracticeMath.Editor
 
             EnsureLearningSceneFile(GameScenes.TimesTableGrid);
             EnsureHomeNavOnPrefabs();
+            PracticeMathUiAssetsEditor.EnsureUiAssetsSilent();
+            EnsureThemedPanelPrefabs();
             EnsureHomeSettingsOnHomePrefab();
 
             ApplyToScene(GameScenes.Home, HomePrefabPath, typeof(HomeHubController));
@@ -413,6 +417,68 @@ namespace PracticeMath.Editor
 
             home.gameObject.AddComponent<HomeNavButtonView>();
             return true;
+        }
+
+        [MenuItem("Practice Math/UI/Apply Shared Background + Theme To All Panel Prefabs")]
+        public static void ApplyThemeToAllPanelPrefabsMenu()
+        {
+            PracticeMathUiAssetsEditor.EnsureUiAssetsSilent();
+            EnsureThemedPanelPrefabs();
+            AssetDatabase.SaveAssets();
+            EditorUtility.DisplayDialog(
+                "Practice Math UI",
+                "Each canvas panel prefab has one ScreenBackground. Nested prefabs (e.g. settings overlay) no longer include their own.",
+                "OK");
+        }
+
+        private static void EnsureThemedPanelPrefabs()
+        {
+            PatchCanvasPanelPrefabTheme(HomePrefabPath);
+            PatchCanvasPanelPrefabTheme(TimesPrefabPath);
+            PatchCanvasPanelPrefabTheme(TimesGridPrefabPath);
+            PatchCanvasPanelPrefabTheme(McPrefabPath);
+            PatchNonCanvasPrefabStripBackgrounds(HomeHubPanelUiFactory.SettingsOverlayPrefabPath);
+        }
+
+        private static void PatchCanvasPanelPrefabTheme(string prefabPath)
+        {
+            if (!PrefabExists(prefabPath))
+                return;
+
+            var root = PrefabUtility.LoadPrefabContents(prefabPath);
+            try
+            {
+                if (root.GetComponent<Canvas>() == null)
+                    return;
+
+                UiPracticeBackgroundView.Ensure(root.transform);
+                UiThemeSceneApplicator.EnsureOn(root);
+                PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        private static void PatchNonCanvasPrefabStripBackgrounds(string prefabPath)
+        {
+            if (!PrefabExists(prefabPath))
+                return;
+
+            var root = PrefabUtility.LoadPrefabContents(prefabPath);
+            try
+            {
+                UiBackgroundCleanup.RemoveBackgroundLayersFromSubtree(root.transform);
+                var theme = root.GetComponent<UiThemeSceneApplicator>();
+                if (theme != null)
+                    Object.DestroyImmediate(theme);
+                PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
         }
 
         private static void EnsureSettingsOverlayPrefabAsset()

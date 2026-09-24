@@ -82,9 +82,11 @@ namespace PracticeMath.UI
             index = Mathf.Clamp(index, 0, SchemeCount - 1);
             return index switch
             {
-                0 => UiColorSchemePalette.FromHex("Ocean Play", "425B9A", "76C0EC", "FFF6DC", "FF95A5"),
-                1 => UiColorSchemePalette.FromHex("Sunset Bold", "DF301C", "FF9100", "FFF1D0", "0B7CDD"),
-                _ => UiColorSchemePalette.FromHex("Warm Slate", "F5EBDD", "F2765E", "315B8C", "413333"),
+                // Darkest → brightest after ResolveRoles: navy panels, white text, orange buttons, sky accent.
+                0 => UiColorSchemePalette.FromHex("Sunny Sky", "154360", "2874A6", "F39C12", "FEF9E7"),
+                // Forest panels, cream text, carrot buttons, mint accent.
+                1 => UiColorSchemePalette.FromHex("Garden Day", "145A32", "52BE80", "E67E22", "FFFFFE"),
+                _ => UiColorSchemePalette.FromHex("Grape Pop", "512E5F", "9B59B6", "E91E63", "FDFEFE"),
             };
         }
 

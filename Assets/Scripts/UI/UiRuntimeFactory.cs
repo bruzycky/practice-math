@@ -47,6 +47,9 @@ namespace PracticeMath.UI
             root.anchorMax = Vector2.one;
             root.offsetMin = Vector2.zero;
             root.offsetMax = Vector2.zero;
+
+            UiPracticeBackgroundView.Ensure(canvasGo.transform);
+            UiThemeSceneApplicator.EnsureOn(canvasGo);
             return canvas;
         }
 

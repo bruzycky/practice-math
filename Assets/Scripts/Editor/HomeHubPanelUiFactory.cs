@@ -168,11 +168,6 @@ namespace PracticeMath.Editor
                 return;
 
             var gearBtn = overlayInstance.transform.Find("SettingsGearButton")?.GetComponent<Button>();
-            var settingsPanel = overlayInstance.transform.Find("SettingsPanel")?.gameObject;
-            var adminPanel = overlayInstance.transform.Find("AdminPanel")?.gameObject;
-            var settingsBg = settingsPanel?.GetComponent<Image>();
-            var adminBg = adminPanel?.GetComponent<Image>();
-
             var settingsSo = new SerializedObject(settingsView);
             settingsSo.FindProperty("hub").objectReferenceValue = controller;
             settingsSo.ApplyModifiedPropertiesWithoutUndo();
@@ -185,30 +180,7 @@ namespace PracticeMath.Editor
 
             var header = homePanel.transform.Find("Header");
             var scroll = homePanel.transform.Find("Scroll");
-            var themeApplicator = homePanel.GetComponent<UiHomeThemeApplicator>();
-            if (themeApplicator == null)
-                themeApplicator = homePanel.AddComponent<UiHomeThemeApplicator>();
-
-            var title = header?.Find("Title")?.GetComponent<TextMeshProUGUI>();
-            var subtitle = header?.Find("Subtitle")?.GetComponent<TextMeshProUGUI>();
-            var gradeDropdown = header != null ? header.GetComponentInChildren<TMP_Dropdown>(true) : null;
-            var scrollImg = scroll != null ? scroll.GetComponent<Image>() : null;
-            var tiles = homePanel.GetComponentsInChildren<HomeNavTileView>(true);
-            var canvasBg = homePanel.transform.Find("CanvasBackground")?.GetComponent<Image>();
-
-            var themeSo = new SerializedObject(themeApplicator);
-            themeSo.FindProperty("canvasBackground").objectReferenceValue = canvasBg;
-            themeSo.FindProperty("scrollBackdrop").objectReferenceValue = scrollImg;
-            themeSo.FindProperty("titleText").objectReferenceValue = title;
-            themeSo.FindProperty("subtitleText").objectReferenceValue = subtitle;
-            themeSo.FindProperty("gradeDropdown").objectReferenceValue = gradeDropdown;
-            themeSo.FindProperty("navTiles").arraySize = tiles.Length;
-            for (int i = 0; i < tiles.Length; i++)
-                themeSo.FindProperty("navTiles").GetArrayElementAtIndex(i).objectReferenceValue = tiles[i];
-            themeSo.FindProperty("settingsGearBackground").objectReferenceValue = gearBtn != null ? gearBtn.GetComponent<Image>() : null;
-            themeSo.FindProperty("settingsPanelBackground").objectReferenceValue = settingsBg;
-            themeSo.FindProperty("adminPanelBackground").objectReferenceValue = adminBg;
-            themeSo.ApplyModifiedPropertiesWithoutUndo();
+            EnsureCanvasBackgroundAndTheme(homePanel);
 
             var hubSo = new SerializedObject(controller);
             hubSo.FindProperty("headerRoot").objectReferenceValue = header != null ? header.gameObject : null;
@@ -242,18 +214,8 @@ namespace PracticeMath.Editor
 
         private static void EnsureCanvasBackgroundAndTheme(GameObject panelRoot)
         {
-            var canvasRt = panelRoot.GetComponent<RectTransform>();
-            if (panelRoot.transform.Find("CanvasBackground") == null)
-            {
-                var bgGo = new GameObject("CanvasBackground", typeof(RectTransform), typeof(Image));
-                bgGo.transform.SetParent(canvasRt, false);
-                bgGo.transform.SetAsFirstSibling();
-                StretchFull(bgGo.GetComponent<RectTransform>());
-                bgGo.GetComponent<Image>().raycastTarget = false;
-            }
-
-            if (panelRoot.GetComponent<UiHomeThemeApplicator>() == null)
-                panelRoot.AddComponent<UiHomeThemeApplicator>();
+            UiPracticeBackgroundView.Ensure(panelRoot.transform);
+            UiThemeSceneApplicator.EnsureOn(panelRoot);
         }
 
         private static bool HasLegacyEmbeddedSettings(Transform homeRoot)

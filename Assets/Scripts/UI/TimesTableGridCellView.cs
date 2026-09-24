@@ -37,17 +37,19 @@ namespace PracticeMath.UI
         private bool _pendingChoice;
         private TimesTableGridStripHighlight _strip = TimesTableGridStripHighlight.None;
 
-        private static readonly Color DefaultProduct = new Color(0.14f, 0.22f, 0.36f, 1f);
-        private static readonly Color DefaultProductText = Color.white;
-        private static readonly Color IntersectionText = Color.black;
-        private static readonly Color HeaderColor = new Color(0.22f, 0.42f, 0.68f, 1f);
-        private static readonly Color SelectedHeader = new Color(0.35f, 0.62f, 0.92f, 1f);
-        private static readonly Color ColumnStripColor = new Color(0.2f, 0.48f, 0.72f, 1f);
-        private static readonly Color RowStripColor = new Color(0.24f, 0.52f, 0.62f, 1f);
-        private static readonly Color IntersectionColor = new Color(0.95f, 0.78f, 0.22f, 1f);
-        private static readonly Color PendingProductTint = new Color(0.2f, 0.34f, 0.46f, 1f);
-        private static readonly Color PendingHeaderTint = new Color(0.28f, 0.52f, 0.78f, 1f);
-        private static readonly Color PendingOutlineColor = new Color(0.92f, 0.96f, 1f, 0.95f);
+        private static UiThemeGridColors Theme => UiThemeGridColorsProvider.Current;
+
+        private static Color DefaultProduct => Theme.ProductCell;
+        private static Color DefaultProductText => Theme.ProductText;
+        private static Color IntersectionText => Theme.IntersectionText;
+        private static Color HeaderColor => Theme.HeaderCell;
+        private static Color SelectedHeader => Theme.SelectedHeader;
+        private static Color ColumnStripColor => Theme.ColumnStrip;
+        private static Color RowStripColor => Theme.RowStrip;
+        private static Color IntersectionColor => Theme.Intersection;
+        private static Color PendingProductTint => Theme.PendingProduct;
+        private static Color PendingHeaderTint => Theme.PendingHeader;
+        private static Color PendingOutlineColor => Theme.PendingOutline;
 
         public TimesTableGridCellRole Role => role;
         public bool IsPendingChoice => _pendingChoice;
@@ -129,7 +131,7 @@ namespace PracticeMath.UI
 
             background.color = role switch
             {
-                TimesTableGridCellRole.Corner => new Color(0.08f, 0.1f, 0.14f, 0.45f),
+                TimesTableGridCellRole.Corner => Theme.CornerCell,
                 TimesTableGridCellRole.RowHeader or TimesTableGridCellRole.ColumnHeader => HeaderColor,
                 _ => DefaultProduct
             };
@@ -296,6 +298,24 @@ namespace PracticeMath.UI
             SetHeaderSelected(false);
             ApplyBaseColor();
             RestoreProductLabelStyle();
+        }
+
+        /// <summary>Reapply palette after the user changes color scheme.</summary>
+        public void ReapplyThemeFromProvider()
+        {
+            var strip = _strip;
+            var pending = _pendingChoice;
+            ApplyBaseColor();
+            RestoreProductLabelStyle();
+
+            if (pending)
+            {
+                SetPendingChoice(true);
+                return;
+            }
+
+            if (strip != TimesTableGridStripHighlight.None && role == TimesTableGridCellRole.Product)
+                SetStripHighlight(strip);
         }
 
         private IEnumerator ScaleOverTime(float from, float to, float duration)
