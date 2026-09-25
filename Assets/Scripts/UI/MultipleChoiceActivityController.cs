@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PracticeMath.Analytics;
 using PracticeMath.Content;
 using PracticeMath.Core;
 using PracticeMath.Navigation;
@@ -165,6 +166,10 @@ namespace PracticeMath.UI
                 return;
 
             bool correct = index == _current.CorrectIndex;
+            var module = AppSessionContext.Instance != null
+                ? AppSessionContext.Instance.ActiveModule
+                : LearningModule.Geometry;
+            PracticeSessionAnalytics.Instance?.NotifyModuleAnswer(module, correct);
             if (feedbackText != null)
             {
                 feedbackText.text = correct

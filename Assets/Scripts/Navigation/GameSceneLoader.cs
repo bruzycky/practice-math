@@ -1,3 +1,4 @@
+using PracticeMath.Analytics;
 using PracticeMath.Core;
 using PracticeMath.UI;
 using UnityEngine.SceneManagement;
@@ -21,6 +22,7 @@ namespace PracticeMath.Navigation
 
             ctx.ActiveModule = module;
             UiEventSystemUtility.ClearCurrentSelection();
+            PracticeSessionAnalytics.Instance?.NotifyModuleVisit(module);
 
             switch (module)
             {

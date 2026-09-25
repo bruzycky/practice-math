@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using PracticeMath.Analytics;
+using PracticeMath.Core;
 using PracticeMath.Navigation;
 using TMPro;
 using UnityEngine;
@@ -137,12 +139,14 @@ namespace PracticeMath.UI
 
             if (value == _correctAnswer)
             {
+                PracticeSessionAnalytics.Instance?.NotifyModuleAnswer(LearningModule.TimesTables, true);
                 ShowFeedback("Correct!", true);
                 ClearInput();
                 _advanceAfterCorrectRoutine = StartCoroutine(AdvanceAfterCorrect());
             }
             else
             {
+                PracticeSessionAnalytics.Instance?.NotifyModuleAnswer(LearningModule.TimesTables, false);
                 ShowFeedback($"Not quite. The answer is {_correctAnswer}.", false);
             }
         }

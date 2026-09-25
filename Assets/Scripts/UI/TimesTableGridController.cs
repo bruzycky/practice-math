@@ -1,4 +1,6 @@
 using System.Collections;
+using PracticeMath.Analytics;
+using PracticeMath.Core;
 using PracticeMath.Navigation;
 using TMPro;
 using UnityEngine;
@@ -193,6 +195,7 @@ namespace PracticeMath.UI
             ClearFeedback();
             yield return RunStripRoutine(AnimateRadiateFromProduct(cell));
             ShowFeedback(FormatMultiplicationFeedback(cell.RowFactor, cell.ColumnFactor), false);
+            PracticeSessionAnalytics.Instance?.NotifyModuleExploration(LearningModule.TimesTableGrid);
             RefreshInstruction();
         }
 
@@ -621,6 +624,7 @@ namespace PracticeMath.UI
                 cell.SetStripHighlight(TimesTableGridStripHighlight.Intersection);
 
             ShowFeedback(FormatMultiplicationFeedback(_selectedRow, _selectedColumn), false);
+            PracticeSessionAnalytics.Instance?.NotifyModuleExploration(LearningModule.TimesTableGrid);
             RefreshInstruction();
         }
 

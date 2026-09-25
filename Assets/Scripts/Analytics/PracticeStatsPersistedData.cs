@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using PracticeMath.Core;
 using UnityEngine;
 
 namespace PracticeMath.Analytics
@@ -9,7 +10,7 @@ namespace PracticeMath.Analytics
     [Serializable]
     public sealed class PracticeStatsPersistedData
     {
-        public int fileVersion = 2;
+        public int fileVersion = 3;
 
         public long lifetimeProblemsSolved;
         public long lifetimeSubmissions;
@@ -49,6 +50,13 @@ namespace PracticeMath.Analytics
         public int lastWrongAnswer;
         public int hasLastWrong;
 
+        /// <summary>Indexed by <see cref="PracticeMath.Core.LearningModule"/>.</summary>
+        public int[] lifetimeModuleVisits = new int[LearningModuleStats.ModuleSlotCount];
+
+        public int[] lifetimeModuleSubmissions = new int[LearningModuleStats.ModuleSlotCount];
+
+        public int[] lifetimeModuleCorrect = new int[LearningModuleStats.ModuleSlotCount];
+
         public static PracticeStatsPersistedData CreateDefault()
         {
             return new PracticeStatsPersistedData
@@ -56,7 +64,10 @@ namespace PracticeMath.Analytics
                 lifetimeGradeSeconds = new float[4],
                 weekdaySubmissionCount = new int[7],
                 hourSubmissionCount = new int[24],
-                solveTimeEntries = new List<SolveTimeEntry>()
+                solveTimeEntries = new List<SolveTimeEntry>(),
+                lifetimeModuleVisits = new int[LearningModuleStats.ModuleSlotCount],
+                lifetimeModuleSubmissions = new int[LearningModuleStats.ModuleSlotCount],
+                lifetimeModuleCorrect = new int[LearningModuleStats.ModuleSlotCount]
             };
         }
     }
@@ -100,6 +111,7 @@ namespace PracticeMath.Analytics
                 data.solveTimeEntries ??= new List<SolveTimeEntry>();
                 if (data.sessionDaysMerged == null)
                     data.sessionDaysMerged = string.Empty;
+                LearningModuleStats.EnsureModuleArrays(data);
                 return data;
             }
             catch (Exception e)

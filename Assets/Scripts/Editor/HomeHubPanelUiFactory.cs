@@ -282,12 +282,15 @@ namespace PracticeMath.Editor
             contentRt.anchorMin = new Vector2(0f, 1f);
             contentRt.anchorMax = new Vector2(1f, 1f);
             contentRt.pivot = new Vector2(0.5f, 1f);
+            contentRt.sizeDelta = new Vector2(0f, 0f);
             content.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             var vlg = content.GetComponent<VerticalLayoutGroup>();
             vlg.childControlHeight = true;
             vlg.childControlWidth = true;
             vlg.childForceExpandHeight = false;
             vlg.childForceExpandWidth = true;
+            vlg.padding = new RectOffset(24, 24, 16, 16);
+            vlg.childAlignment = TextAnchor.UpperLeft;
 
             var summary = UiRuntimeFactory.CreateText(contentRt, "Summary", "Loading stats…", 22f, TextAlignmentOptions.TopLeft);
             summary.textWrappingMode = TextWrappingModes.Normal;
@@ -295,7 +298,8 @@ namespace PracticeMath.Editor
             summaryRt.sizeDelta = new Vector2(0f, 200f);
             var summaryLayout = summary.gameObject.AddComponent<LayoutElement>();
             summaryLayout.minHeight = 120f;
-            summaryLayout.preferredWidth = 900f;
+            summaryLayout.flexibleWidth = 1f;
+            AdminAnalyticsLayout.Apply(summary, contentRt);
 
             var scroll = scrollGo.GetComponent<ScrollRect>();
             scroll.content = contentRt;

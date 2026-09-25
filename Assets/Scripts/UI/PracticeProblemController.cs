@@ -41,7 +41,10 @@ namespace PracticeMath.UI
         /// Same instance used for new-question / grade notifications.
         /// <see cref="AnswerKeypad"/> uses this when its own analytics field is not assigned.
         /// </summary>
-        public PracticeSessionAnalytics SessionAnalytics => sessionAnalytics;
+        public PracticeSessionAnalytics SessionAnalytics => ResolveAnalytics();
+
+        private PracticeSessionAnalytics ResolveAnalytics() =>
+            sessionAnalytics != null ? sessionAnalytics : PracticeSessionAnalytics.Instance;
 
         private MathProblemGenerator _generator;
         private MathProblem _current;
@@ -85,7 +88,7 @@ namespace PracticeMath.UI
                     gradeDropdown.gameObject.SetActive(false);
             }
 
-            sessionAnalytics?.NotifyActiveGrade(_gradeLevel);
+            ResolveAnalytics()?.NotifyActiveGrade(_gradeLevel);
             UpdateQuizStatusText(string.Empty);
 
             if (ShouldStartQuizFromHub())
@@ -132,7 +135,7 @@ namespace PracticeMath.UI
         private void OnGradeDropdownChanged(int index)
         {
             _gradeLevel = (GradeLevel)(index + 1);
-            sessionAnalytics?.NotifyActiveGrade(_gradeLevel);
+            ResolveAnalytics()?.NotifyActiveGrade(_gradeLevel);
             if (_isQuizActive)
                 StartQuiz();
             else
@@ -208,7 +211,7 @@ namespace PracticeMath.UI
             _current = NextUnaskedProblem(_settings);
             if (promptText != null)
                 promptText.text = _current.Prompt;
-            sessionAnalytics?.NotifyNewProblem();
+            ResolveAnalytics()?.NotifyNewProblem();
         }
 
         private MathProblem NextUnaskedProblem(GeneratorSettings settings)

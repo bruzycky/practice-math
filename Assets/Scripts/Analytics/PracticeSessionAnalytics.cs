@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using PracticeMath.Core;
+using PracticeMath.Navigation;
 using UnityEngine;
 
 namespace PracticeMath.Analytics
@@ -13,6 +14,8 @@ namespace PracticeMath.Analytics
     /// </summary>
     public sealed class PracticeSessionAnalytics : MonoBehaviour
     {
+        public static PracticeSessionAnalytics Instance { get; private set; }
+
         private const int MaxSolveSamples = 300;
         private const float IdleThresholdSeconds = 45f;
         private const int MaxSessionDayTokens = 100;
@@ -43,6 +46,9 @@ namespace PracticeMath.Analytics
         private float _sessionActiveSeconds;
         private float _sessionIdleSeconds;
         private readonly float[] _sessionGradeSeconds = new float[4];
+        private readonly int[] _sessionModuleVisits = new int[LearningModuleStats.ModuleSlotCount];
+        private readonly int[] _sessionModuleSubmissions = new int[LearningModuleStats.ModuleSlotCount];
+        private readonly int[] _sessionModuleCorrect = new int[LearningModuleStats.ModuleSlotCount];
 
         private float _checkpointActive;
         private float _checkpointIdle;
@@ -104,8 +110,27 @@ namespace PracticeMath.Analytics
         public float AverageAttemptsPerSolvedProblem =>
             _problemsSolved > 0 ? (float)_sumAttemptsWhenSolved / _problemsSolved : 0f;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void BootstrapInstance()
+        {
+            if (Instance != null)
+                return;
+
+            var go = new GameObject(nameof(PracticeSessionAnalytics));
+            go.AddComponent<PracticeSessionAnalytics>();
+        }
+
         private void Awake()
         {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+
             EnsurePersistedLoaded();
             EnsureSessionClockStarted();
             if (!_retentionRegistered)
@@ -113,6 +138,13 @@ namespace PracticeMath.Analytics
                 RegisterSessionDayForRetention();
                 _retentionRegistered = true;
             }
+        }
+
+        private void OnDestroy()
+        {
+            SaveToDisk();
+            if (Instance == this)
+                Instance = null;
         }
 
         /// <summary>Safe if UI refreshes before Awake (e.g. home admin panel on the same prefab).</summary>
@@ -124,6 +156,7 @@ namespace PracticeMath.Analytics
             _p = PracticeStatsFileStore.LoadOrCreate();
             _p.dailyGoalProblems = dailyGoalProblems;
             _p.dailyGoalMinutes = dailyGoalMinutes;
+            LearningModuleStats.EnsureModuleArrays(_p);
             RolloverTodayIfNeeded();
         }
 
@@ -168,8 +201,51 @@ namespace PracticeMath.Analytics
             SaveToDisk();
         }
 
-        private void OnDestroy()
+        /// <summary>Call when the learner opens an activity from the hub.</summary>
+        public void NotifyModuleVisit(LearningModule module)
         {
+            int index = LearningModuleStats.ToIndex(module);
+            if (index < 0)
+                return;
+
+            EnsurePersistedLoaded();
+            _sessionModuleVisits[index]++;
+            _p.lifetimeModuleVisits[index]++;
+            Changed?.Invoke();
+            SaveToDisk();
+        }
+
+        /// <summary>Records a scored check (quiz, keypad, multiple choice).</summary>
+        public void NotifyModuleAnswer(LearningModule module, bool correct)
+        {
+            int index = LearningModuleStats.ToIndex(module);
+            if (index < 0)
+                return;
+
+            EnsurePersistedLoaded();
+            _sessionModuleSubmissions[index]++;
+            _p.lifetimeModuleSubmissions[index]++;
+            if (correct)
+            {
+                _sessionModuleCorrect[index]++;
+                _p.lifetimeModuleCorrect[index]++;
+            }
+
+            Changed?.Invoke();
+            SaveToDisk();
+        }
+
+        /// <summary>Records chart exploration (e.g. completed row/column highlight).</summary>
+        public void NotifyModuleExploration(LearningModule module)
+        {
+            int index = LearningModuleStats.ToIndex(module);
+            if (index < 0)
+                return;
+
+            EnsurePersistedLoaded();
+            _sessionModuleSubmissions[index]++;
+            _p.lifetimeModuleSubmissions[index]++;
+            Changed?.Invoke();
             SaveToDisk();
         }
 
@@ -224,6 +300,10 @@ namespace PracticeMath.Analytics
                 if (correct)
                     _p.abCorrectA++;
             }
+
+            var session = AppSessionContext.Instance;
+            if (session != null)
+                NotifyModuleAnswer(session.ActiveModule, correct);
 
             if (correct)
             {
@@ -401,6 +481,9 @@ namespace PracticeMath.Analytics
             Array.Clear(_attemptsByGrade, 0, _attemptsByGrade.Length);
             Array.Clear(_correctByOperation, 0, _correctByOperation.Length);
             Array.Clear(_attemptsByOperation, 0, _attemptsByOperation.Length);
+            Array.Clear(_sessionModuleVisits, 0, _sessionModuleVisits.Length);
+            Array.Clear(_sessionModuleSubmissions, 0, _sessionModuleSubmissions.Length);
+            Array.Clear(_sessionModuleCorrect, 0, _sessionModuleCorrect.Length);
             Changed?.Invoke();
         }
 
@@ -498,6 +581,36 @@ namespace PracticeMath.Analytics
             sb.AppendLine($"Distinct session days stored: {CountSessionDayTokens()}");
             sb.AppendLine($"Sessions in last 7 UTC days: {CountSessionDaysInLast(7)}");
             sb.AppendLine($"Days since last session day in file: {DaysSinceLastSessionDay()}");
+
+            sb.AppendLine();
+            sb.AppendLine("ACTIVITIES (session visits | checks | correct, then lifetime)");
+            for (int m = 0; m < LearningModuleStats.ModuleSlotCount; m++)
+            {
+                var module = (LearningModule)m;
+                string title = LearningModuleDisplay.GetTitle(module);
+                int visits = _sessionModuleVisits[m];
+                int checks = _sessionModuleSubmissions[m];
+                int corr = _sessionModuleCorrect[m];
+                int lifeVisits = _p.lifetimeModuleVisits[m];
+                int lifeChecks = _p.lifetimeModuleSubmissions[m];
+                int lifeCorr = _p.lifetimeModuleCorrect[m];
+
+                if (LearningModuleDisplay.TracksExplorations(module))
+                {
+                    sb.AppendLine(
+                        $"{title}: visits {visits}/{lifeVisits} | explorations {checks}/{lifeChecks}");
+                    continue;
+                }
+
+                if (LearningModuleDisplay.TracksAnswerChecks(module))
+                {
+                    sb.AppendLine(
+                        $"{title}: visits {visits}/{lifeVisits} | checks {checks}/{lifeChecks} | correct {corr}/{lifeCorr}");
+                    continue;
+                }
+
+                sb.AppendLine($"{title}: visits {visits}/{lifeVisits}");
+            }
 
             sb.AppendLine();
             sb.AppendLine("BY GRADE (session)");

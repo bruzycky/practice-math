@@ -26,6 +26,8 @@ namespace PracticeMath.UI
 
         private void Start()
         {
+            if (analytics == null)
+                analytics = PracticeSessionAnalytics.Instance;
             Refresh();
         }
 
@@ -59,15 +61,20 @@ namespace PracticeMath.UI
         /// <summary>Force-refresh the label (e.g. when opening the panel).</summary>
         public void Refresh()
         {
+            if (analytics == null)
+                analytics = PracticeSessionAnalytics.Instance;
             if (summaryText == null || analytics == null)
                 return;
-            summaryText.text = analytics.GetFormattedSummary();
-            summaryText.ForceMeshUpdate();
-            Canvas.ForceUpdateCanvases();
 
             RectTransform content = scrollContentRoot != null
                 ? scrollContentRoot
                 : summaryText.transform.parent as RectTransform;
+            AdminAnalyticsLayout.Apply(summaryText, content);
+
+            summaryText.text = analytics.GetFormattedSummary();
+            summaryText.ForceMeshUpdate();
+            Canvas.ForceUpdateCanvases();
+
             if (content != null)
                 LayoutRebuilder.ForceRebuildLayoutImmediate(content);
             LayoutRebuilder.ForceRebuildLayoutImmediate(summaryText.rectTransform);
