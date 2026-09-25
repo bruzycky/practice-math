@@ -118,7 +118,7 @@ namespace PracticeMath.UI
                 return;
             }
 
-            _current = _sessionQueue[_questionIndex];
+            _current = _sessionQueue[_questionIndex].WithShuffledOptions();
             if (promptText != null)
                 promptText.text = _current.Prompt;
             if (statusText != null)

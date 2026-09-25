@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using PracticeMath.Navigation;
 using TMPro;
 using UnityEngine;
 
@@ -22,6 +24,10 @@ namespace PracticeMath.UI
         private int _left;
         private int _right;
         private int _correctAnswer;
+        private Coroutine _advanceAfterCorrectRoutine;
+
+        private static readonly Color CorrectFeedbackColor = new Color(0.75f, 1f, 0.82f);
+        private static readonly Color IncorrectFeedbackColor = new Color(1f, 0.75f, 0.65f);
 
         private void Start()
         {
@@ -35,6 +41,7 @@ namespace PracticeMath.UI
         {
             if (tableDropdown != null)
                 tableDropdown.onValueChanged.RemoveAllListeners();
+            StopAdvanceAfterCorrect();
         }
 
         private void PopulateTableDropdown()
@@ -79,8 +86,7 @@ namespace PracticeMath.UI
                 _correctAnswer = _left * _right;
                 promptText.text = $"{_left} × {_right} =";
                 ClearInput();
-                if (feedbackText != null)
-                    feedbackText.text = string.Empty;
+                ClearFeedback();
                 return;
             }
 
@@ -115,31 +121,45 @@ namespace PracticeMath.UI
 
         public void Submit()
         {
+            StopAdvanceAfterCorrect();
+
             if (_digits.Length == 0)
             {
-                if (feedbackText != null)
-                    feedbackText.text = "Enter a number";
+                ShowFeedback("Enter a number", null);
                 return;
             }
 
             if (!int.TryParse(_digits.ToString(), out int value))
             {
-                if (feedbackText != null)
-                    feedbackText.text = "Invalid";
+                ShowFeedback("Invalid", null);
                 return;
             }
 
             if (value == _correctAnswer)
             {
-                if (feedbackText != null)
-                    feedbackText.text = "Correct!";
+                ShowFeedback("Correct!", true);
                 ClearInput();
-                NextProblem();
+                _advanceAfterCorrectRoutine = StartCoroutine(AdvanceAfterCorrect());
             }
-            else if (feedbackText != null)
+            else
             {
-                feedbackText.text = "Try again";
+                ShowFeedback($"Not quite. The answer is {_correctAnswer}.", false);
             }
+        }
+
+        private IEnumerator AdvanceAfterCorrect()
+        {
+            yield return new WaitForSeconds(0.75f);
+            _advanceAfterCorrectRoutine = null;
+            NextProblem();
+        }
+
+        private void StopAdvanceAfterCorrect()
+        {
+            if (_advanceAfterCorrectRoutine == null)
+                return;
+            StopCoroutine(_advanceAfterCorrectRoutine);
+            _advanceAfterCorrectRoutine = null;
         }
 
         private void AppendDigit(char c)
@@ -148,8 +168,37 @@ namespace PracticeMath.UI
                 return;
             _digits.Append(c);
             RefreshAnswer();
-            if (feedbackText != null)
-                feedbackText.text = string.Empty;
+            ClearFeedback();
+        }
+
+        private void ShowFeedback(string message, bool? isCorrect)
+        {
+            if (feedbackText == null)
+                return;
+
+            feedbackText.text = message;
+            if (!isCorrect.HasValue)
+            {
+                feedbackText.color = ResolveThemeTextColor();
+                return;
+            }
+
+            feedbackText.color = isCorrect.Value ? CorrectFeedbackColor : IncorrectFeedbackColor;
+        }
+
+        private void ClearFeedback()
+        {
+            if (feedbackText == null)
+                return;
+            feedbackText.text = string.Empty;
+            feedbackText.color = ResolveThemeTextColor();
+        }
+
+        private static Color ResolveThemeTextColor()
+        {
+            return AppThemeContext.Instance != null
+                ? AppThemeContext.Instance.CurrentRoles.Text
+                : UiColorSchemeCatalog.Get(0).ResolveRoles().Text;
         }
 
         private void RefreshAnswer()
